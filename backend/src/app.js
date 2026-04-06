@@ -5,6 +5,9 @@ const cors = require("cors");
 
 const authRoutes = require("./routes/authRoutes");
 const roleRoutes = require("./routes/roleRoutes");
+const programmeRoutes = require("./routes/programmeRoutes");
+
+
 const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
@@ -24,7 +27,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/roles", roleRoutes);
-
+app.use("/api/programmes", programmeRoutes);
 // Health check route
 app.get("/", (req, res) => {
   res.json({
