@@ -6,6 +6,7 @@ const cors = require("cors");
 const authRoutes = require("./routes/authRoutes");
 const roleRoutes = require("./routes/roleRoutes");
 const programmeRoutes = require("./routes/programmeRoutes");
+const donorpartnerRoutes = require("./routes/donorpartnerRoutes")
 
 
 const errorHandler = require("./middleware/errorHandler");
@@ -28,6 +29,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api/auth", authRoutes);
 app.use("/api/roles", roleRoutes);
 app.use("/api/programmes", programmeRoutes);
+app.use("/api/donor-partner", donorpartnerRoutes)
 // Health check route
 app.get("/", (req, res) => {
   res.json({
