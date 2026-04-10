@@ -36,6 +36,13 @@ app.get("/", (req, res) => {
 });
 
 
+
+// Programme officer
+app.use("/api/projects", require("./routes/projectRoutes"));
+
+
+
+
 app.use(errorHandler);
 
 module.exports = app;
