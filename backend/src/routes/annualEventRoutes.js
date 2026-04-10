@@ -6,8 +6,8 @@ const annualEventController = require("../controllers/annualEventController");
 router.post("/main-event", annualEventController.createAnnualEvent);
 router.post("/event", annualEventController.createEvent);
 
-router.put("/annual-event/:id", annualEventController.updateAnnualEvent);
-router.delete("/annual-event/:id", annualEventController.deleteAnnualEvent);
+router.put("/main-event/:id", annualEventController.updateAnnualEvent);
+router.delete("/main-event/:id", annualEventController.deleteAnnualEvent);
 
 
 router.get("/events/:annualEventId",annualEventController.getEventsByAnnualEvent);
