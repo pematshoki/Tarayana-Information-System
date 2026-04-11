@@ -1,70 +1,39 @@
 const mongoose = require("mongoose");
 
-// Each entry links to a KeyActivity and records how much this beneficiary received
-const activityEntrySchema = new mongoose.Schema(
-  {
-    keyActivity: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "KeyActivity",
-      required: true,
-    },
-    quantity: {
-      type: Number,
-      required: [true, "Quantity is required"],
-      min: [0, "Quantity cannot be negative"],
-    },
-    notes: { type: String, trim: true },
+const beneficiarySchema = new mongoose.Schema({
+  projectId: { type: mongoose.Schema.Types.ObjectId, ref: "Project", required: true },
+  year: { type: Number, required: true },
+  gender: { 
+    type: String, 
+    enum: { values: ['M', 'F'], message: '{VALUE} is not supported' }, 
+    required: true 
   },
-  { _id: false }
-);
-
-const beneficiarySchema = new mongoose.Schema(
-  {
-    project: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Project",
-      required: [true, "Project is required"],
-      index: true,
-    },
-    firstName: {
-      type: String,
-      required: [true, "First name is required"],
-      trim: true,
-    },
-    lastName: {
-      type: String,
-      required: [true, "Last name is required"],
-      trim: true,
-    },
-    gender:        { type: String, enum: ["male", "female", "other"] },
-    dateOfBirth:   { type: Date },
-    contactNumber: { type: String, trim: true },
-    cidNumber:     { type: String, trim: true, sparse: true },
-
-    // Plain string — from the same hardcoded DZONGKHAGS list
-    dzongkhag: { type: String, trim: true },
-    gewog:     { type: String, trim: true },
-    village:   { type: String, trim: true },
-
-    // Array of activity quantities for this beneficiary
-    activities: [activityEntrySchema],
-
-    assignedFieldOfficer: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-    notes:        { type: String, trim: true },
-    registeredBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  cid: { 
+    type: String, 
+    required: true,
+    validate: {
+      validator: function(v) { return /^\d{11}$/.test(v); },
+      message: props => `${props.value} is not a valid 11-digit CID!`
+    }
   },
-  {
-    timestamps: true,
-    toJSON:   { virtuals: true },
-    toObject: { virtuals: true },
-  }
-);
-
-beneficiarySchema.virtual("fullName").get(function () {
-  return `${this.firstName} ${this.lastName}`;
-});
+  name: { type: String, required: true },
+  dzongkhag: { type: String, required: true, lowercase: true }, // Logic handled in controller
+  gewog: { type: String, required: true, lowercase: true },
+  village: { type: String, required: true, lowercase: true },
+  houseNo: { type: String, required: true },
+  thramNo: { type: String, required: true },
+  indirectBeneficiaries: {
+    male: { type: Number, default: 0 },
+    female: { type: Number, default: 0 }
+  },
+  keyActivities: [{
+    activityName: { type: String, required: true, lowercase: true },
+    totalQuantity: { type: Number, required: true },
+    unit: { type: String, enum: ['Acres', 'Litres', 'Nos', 'Meters'], required: true },
+    specifications: [String],
+    isTraining: { type: Boolean, default: false },
+    trainingDetails: { date: Date, type: String }
+  }]
+}, { timestamps: true });
 
 module.exports = mongoose.model("Beneficiary", beneficiarySchema);

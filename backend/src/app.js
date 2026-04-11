@@ -9,6 +9,10 @@ const programmeRoutes = require("./routes/programmeRoutes");
 const donorpartnerRoutes = require("./routes/donorpartnerRoutes")
 
 
+const projectRoutes = require("./routes/projectRoutes")
+const beneficiaryRoutes = require("./routes/beneficiaryRoutes");
+
+
 const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
@@ -30,6 +34,14 @@ app.use("/api/auth", authRoutes);
 app.use("/api/roles", roleRoutes);
 app.use("/api/programmes", programmeRoutes);
 app.use("/api/donor-partner", donorpartnerRoutes)
+
+// Project
+app.use("/api/projects", projectRoutes);
+
+// beneficiary
+app.use("/api/beneficiaries", beneficiaryRoutes);
+
+
 // Health check route
 app.get("/", (req, res) => {
   res.json({
@@ -38,9 +50,6 @@ app.get("/", (req, res) => {
 });
 
 
-
-// Programme officer
-app.use("/api/projects", require("./routes/projectRoutes"));
 
 
 
