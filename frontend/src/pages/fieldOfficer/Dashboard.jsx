@@ -5,9 +5,9 @@ import {
   MapPin, 
   TrendingUp 
 } from 'lucide-react';
-import StatCard from '../../components/dashboard/StatCard';
-import ChartCard from '../../components/dashboard/ChartCard';
-import DonutChartCard from '../../components/dashboard/DonutChartCard';
+import StatCard from '../../components/ui/StatCard';
+import ChartCard from '../../components/ui/ChartCard';
+import DonutChartCard from '../../components/ui/DonutChartCard';
 import { beneficiaryData, programmeDistribution } from '../../data/mockData';
 
 const Dashboard = () => {

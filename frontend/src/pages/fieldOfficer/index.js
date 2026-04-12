@@ -1,4 +1,4 @@
-export { default as FieldOfficerLayout } from './FieldOfficerLayout';
+export { default as FieldOfficerLayout } from '../../layouts/FieldOfficerLayout';
 export { default as Dashboard } from './Dashboard';
 export { default as Projects } from './Projects';
 export { default as Beneficiaries } from './Beneficiaries';
@@ -6,5 +6,5 @@ export { default as RegisterBeneficiary } from './RegisterBeneficiary';
 export { default as Reports } from './Reports';
 export { default as GenerateReport } from './GenerateReport';
 export { default as Events } from './Events';
-export { default as ProjectDetail } from './ProjectDetails';
-export { default as SpecificProjectDetail } from './SpecificProjectDetails';
+export { default as ProjectDetail } from './ProjectDetail';
+export { default as SpecificProjectDetail } from './SpecificProjectDetail';

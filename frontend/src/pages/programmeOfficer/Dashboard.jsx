@@ -5,8 +5,8 @@ import {
   MapPin, 
   TrendingUp
 } from 'lucide-react';
-import StatCard from '../../components/dashboard/StatCard';
-import ChartCard from '../../components/dashboard/ChartCard';
+import StatCard from '../../components/ui/StatCard';
+import ChartCard from '../../components/ui/ChartCard';
 
 const beneficiariesByProgrammeData = [
   { name: 'Social Dev', value: 5200, color: '#3498db' },
