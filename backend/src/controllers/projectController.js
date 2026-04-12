@@ -1,10 +1,30 @@
 const Project = require("../models/projectModel");
 const Beneficiary = require("../models/beneficiaryModel");
 const mongoose = require("mongoose");
-
+const User = require("../models/userModel"); // Import User model to get email
+const { sendProjectAssignmentEmail } = require("../utils/email");
 exports.createProject = async (req, res) => {
   try {
     const project = await Project.create(req.body);
+    console.log("✅ Project Created:", project.projectName);
+
+    if (project.fieldOfficer) {
+      const officer = await User.findById(project.fieldOfficer);
+      
+      if (officer) {
+        console.log("📧 Attempting to send email to:", officer.email);
+        
+        // Use officer.email or officer.username if 'name' is missing
+        const displayName = officer.name || officer.email.split('@')[0];
+
+        sendProjectAssignmentEmail(officer.email, displayName, project.projectName)
+          .then(() => console.log("🚀 Email sent successfully to", officer.email))
+          .catch(err => console.error("❌ Nodemailer Error:", err));
+      } else {
+        console.log("⚠️ Field Officer ID found but User not found in database.");
+      }
+    }
+
     res.status(201).json({ success: true, data: project });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
@@ -13,7 +33,7 @@ exports.createProject = async (req, res) => {
 
 
 exports.getProjectView = async (req, res) => {
-  try {
+  try { 
     const { id } = req.params;
 
     // 1. Fetch Project with all details
