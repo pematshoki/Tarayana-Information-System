@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import logo from "../../assets/logo.png";
+import hero from "../../assets/hero.png";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
@@ -15,8 +16,8 @@ const Login = () => {
 
   const [errors, setErrors] = useState({});
 
-  // Placeholder background image (hero.png is missing)
-  const bgImage = "https://picsum.photos/seed/tarayana/1920/1080?blur=4";
+  // Use the provided background image
+  const bgImage = hero;
 
   // ✅ Custom validation
   const validate = () => {

@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Mail } from "lucide-react";
 import logo from "../../assets/logo.png";
+import hero from "../../assets/hero.png";
 import { useNavigate } from "react-router-dom";
 
 const ResetPassword = () => {
   const navigate = useNavigate();
-  const bgImage = "https://picsum.photos/seed/tarayana/1920/1080?blur=4";
+  const bgImage = hero;
 
   const [email, setEmail] = useState("");
   const [errors, setErrors] = useState({});
