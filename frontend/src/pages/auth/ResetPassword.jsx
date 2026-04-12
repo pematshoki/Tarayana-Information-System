@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect,useState } from "react";
 import { Mail } from "lucide-react";
 import bgImage from "../../assets/hero.png";
 import logo from "../../assets/logo.png";
@@ -10,7 +10,28 @@ const ResetPassword = () => {
   const [email, setEmail] = useState("");
   const [errors, setErrors] = useState({});
   const [showSuccess, setShowSuccess] = useState(false);
-
+  const [bgImage, setBgImage] = useState("");
+  useEffect(() => {
+    const fetchBanner = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/banner");
+      const data = await res.json();
+  
+      console.log("BANNER API RESPONSE:", data);
+  
+      if (data && data.imageUrl) {
+        setBgImage(data.imageUrl);
+      } else {
+        console.warn("No banner found in DB");
+        setBgImage(""); // fallback
+      }
+    } catch (err) {
+      console.error("Fetch error:", err);
+    }
+  };
+  
+    fetchBanner();
+  }, []);
   const validate = () => {
     let newErrors = {};
 
@@ -62,13 +83,13 @@ const ResetPassword = () => {
 
   return (
     <div
-      className="relative w-full min-h-screen flex items-center justify-center px-4"
-      style={{
-        backgroundImage: `url(${bgImage})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
-    >
+  className="relative w-full min-h-screen flex items-center justify-center px-4"
+  style={{
+    backgroundImage: bgImage ? `url(${bgImage})` : "none",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+  }}
+>
       {/* Overlay */}
       <div className="absolute inset-0 bg-white/50 backdrop-blur-sm"></div>
 

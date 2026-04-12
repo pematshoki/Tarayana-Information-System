@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect,useState } from "react";
 import { Eye, EyeOff, Lock } from "lucide-react";
 import bgImage from "../../assets/hero.png";
 import logo from "../../assets/logo.png";
@@ -15,6 +15,28 @@ const ConfirmPassword = () => {
 
   const [errors, setErrors] = useState({});
   const [showSuccess, setShowSuccess] = useState(false);
+  const [bgImage, setBgImage] = useState("");
+  useEffect(() => {
+    const fetchBanner = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/banner");
+      const data = await res.json();
+  
+      console.log("BANNER API RESPONSE:", data);
+  
+      if (data && data.imageUrl) {
+        setBgImage(data.imageUrl);
+      } else {
+        console.warn("No banner found in DB");
+        setBgImage(""); // fallback
+      }
+    } catch (err) {
+      console.error("Fetch error:", err);
+    }
+  };
+  
+    fetchBanner();
+  }, []);
 
   // ✅ Strong Password Regex
   const strongPasswordRegex =
@@ -124,13 +146,13 @@ const ConfirmPassword = () => {
 
   return (
     <div
-      className="relative w-full min-h-screen flex items-center justify-center px-4"
-      style={{
-        backgroundImage: `url(${bgImage})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
-    >
+  className="relative w-full min-h-screen flex items-center justify-center px-4"
+  style={{
+    backgroundImage: bgImage ? `url(${bgImage})` : "none",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+  }}
+>
       <div className="absolute inset-0 bg-white/50 backdrop-blur-sm"></div>
 
       <div className="relative z-10 w-full md:max-w-2xl lg:max-w-3xl bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl px-4 py-8 sm:px-6 sm:py-10 text-center">
@@ -169,13 +191,13 @@ const ConfirmPassword = () => {
                 }`}
               />
 
-              <button
+              {/* <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-4 top-1/2 -translate-y-1/2"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+              </button> */}
             </div>
             {errors.password && (
               <p className="text-red-500 text-sm mt-1 text-left">{errors.password}</p>

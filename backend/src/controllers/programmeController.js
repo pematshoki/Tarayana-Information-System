@@ -1,5 +1,5 @@
 const Programme = require("../models/programmeModel");
-
+const Project = require("../models/projectModel");
 // CREATE
 exports.createProgramme = async (req, res) => {
   try {
@@ -20,13 +20,34 @@ exports.createProgramme = async (req, res) => {
   }
 };
 
-// GET ALL
-exports.getAllProgrammes = async (req, res) => {
+exports.getProgrammes = async (req, res) => {
   try {
-    const programmes = await Programme.find();
-    res.json({ totalProgrammes: programmes.length, programmes });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    const programmes = await Programme.aggregate([
+      {
+        $lookup: {
+          from: "projects",
+          localField: "_id",
+          foreignField: "programme",
+          as: "projects",
+        },
+      },
+      {
+        $addFields: {
+          projectCount: { $size: "$projects" },
+        },
+      },
+      {
+        $project: {
+          programmeName: 1,
+          programmeDescription: 1,
+          projectCount: 1,
+        },
+      },
+    ]);
+
+    res.json({ programmes });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 

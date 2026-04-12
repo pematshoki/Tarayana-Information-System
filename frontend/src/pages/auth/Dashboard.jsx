@@ -1,11 +1,94 @@
 
-import { useState } from "react";
+import {useEffect, useState } from "react";
 import Sidebar from "../../components/Sidebar";
 import Navbar from "../../components/Navbar";
 import { Users, FileText, MapPin, BarChart3 } from "lucide-react";
 
 const Dashboard = () => {
-  const [collapsed, setCollapsed] = useState(false);
+const [collapsed, setCollapsed] = useState(false);
+const [beneficiariesCount, setBeneficiariesCount] = useState(0);
+const [ProgrammeCount, setProgrammeCount] = useState(0);
+const [ProjectCount, setProjectCount] = useState(0);
+const [dzongkhagCount, setDzongkhagCount] = useState(0);
+useEffect(() => {
+  const fetchBeneficiaries = async () => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const res = await fetch("http://localhost:5000/api/beneficiaries", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) return;
+
+      setBeneficiariesCount(data.count || 0);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  fetchBeneficiaries();
+}, []);
+useEffect(()=>{
+ const fetchProgrammes = async () => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const res = await fetch("http://localhost:5000/api/programmes", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+      console.log("programmes:",data)
+
+      if (!res.ok) return;
+
+      setProgrammeCount(data.programmes.length || 0);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  fetchProgrammes();
+}, []);
+
+useEffect(()=>{
+ const fetchProjects = async () => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const res = await fetch("http://localhost:5000/api/projects", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+      console.log("project",data)
+const projects = Array.isArray(data.data) ? data.data : [];
+
+const uniqueDzongkhags = new Set(
+  projects
+    .flatMap((p) => p.dzongkhag || [])
+    .map((d) => d.toLowerCase().trim())
+);
+
+setDzongkhagCount(uniqueDzongkhags.size);
+
+      setProjectCount(data.count || 0);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  fetchProjects();
+}, []);
 
   return (
     <div className="bg-gray-100 min-h-screen">
@@ -26,25 +109,25 @@ const Dashboard = () => {
             {[
               {
                 title: "Total Beneficiaries",
-                value: "12,000",
+                value: beneficiariesCount.toLocaleString(),
                 icon: <Users />,
                 color: "bg-blue-100 text-blue-600",
               },
               {
                 title: "Active Programme",
-                value: "24",
+                value: ProgrammeCount.toLocaleString(),
                 icon: <FileText />,
                 color: "bg-green-100 text-green-600",
               },
               {
                 title: "Dzongkhags Covered",
-                value: "20",
+                value: dzongkhagCount.toLocaleString(),
                 icon: <MapPin />,
                 color: "bg-yellow-100 text-yellow-600",
               },
               {
                 title: "Project this Year",
-                value: "47",
+                value: ProjectCount.toLocaleString(),
                 icon: <BarChart3 />,
                 color: "bg-purple-100 text-purple-600",
               },

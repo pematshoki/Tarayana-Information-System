@@ -18,6 +18,7 @@ import Event from "../pages/auth/Event";
 import DetailEvent from "../pages/auth/DetailEvent";
 import UserManagement from "../pages/auth/UserManagement"
 import Setting from "../pages/auth/Setting"
+import AddUser from "../pages/auth/AddUser"
 
 
 
@@ -45,6 +46,7 @@ const AppRoutes = () => {
 <Route path="/event-detail" element={<DetailEvent />} />
 <Route path="/user-management" element={<UserManagement />} />
 <Route path="/setting" element={<Setting />} />
+<Route path="/add-user" element={<AddUser />} />
 
 
         {/* Dashboard Routes */}

@@ -28,7 +28,6 @@ const { id } = useParams();
   if (!event) return <div className="p-6">No Event Found</div>;
 useEffect(() => {
   if (!id) return;
-
   const fetchEvent = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -84,7 +83,7 @@ useEffect(() => {
 }, [id]);
 
   // CREATE
- const handleSave = async () => {
+const handleSave = async () => {
   const payload = {
     annualEventId: event._id,
     data: {},
@@ -93,13 +92,8 @@ useEffect(() => {
   event.fields.forEach((f) => {
     let value = formData[f.fieldName];
 
-    if (f.fieldType === "number") {
-      value = Number(value);
-    }
-
-    if (f.fieldType === "boolean") {
-      value = value === "true" || value === true;
-    }
+    if (f.fieldType === "number") value = Number(value);
+    if (f.fieldType === "boolean") value = value === "true" || value === true;
 
     payload.data[f.fieldName] = value;
   });
@@ -117,31 +111,77 @@ useEffect(() => {
 
   if (!res.ok) return alert(result.message);
 
-  setEvent((prev) => ({
-    ...prev,
-    entries: [...(prev.entries || []), result.data],
-  }));
+  // ✅ FIX: update TABLE state
+  setEntries((prev) => [...prev, result.data]);
 
   setShowForm(false);
   setFormData({});
 };
-
   // EDIT
-  const handleEditSave = () => {
-    const updated = [...event.entries];
-    updated[editIndex] = formData;
+ const handleEditSave = async () => {
+  const entryId = entries[editIndex]._id;
 
-    setEvent({ ...event, entries: updated });
-    setShowEdit(false);
-    setFormData({});
+  const payload = {
+    data: {},
   };
+
+  event.fields.forEach((f) => {
+    let value = formData[f.fieldName];
+
+    if (f.fieldType === "number") value = Number(value);
+    if (f.fieldType === "boolean") value = value === "true" || value === true;
+
+    payload.data[f.fieldName] = value;
+  });
+
+  const res = await fetch(
+    `http://localhost:5000/api/annual-event/event/${entryId}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  const result = await res.json();
+
+  if (!res.ok) return alert(result.message);
+
+  // ✅ update UI instantly
+  setEntries((prev) =>
+    prev.map((e, i) => (i === editIndex ? result.data : e))
+  );
+
+  setShowEdit(false);
+  setFormData({});
+};
 
   // DELETE
-  const handleDelete = () => {
-    const updated = event.entries.filter((_, i) => i !== deleteIndex);
-    setEvent({ ...event, entries: updated });
-    setShowDelete(false);
-  };
+ const handleDelete = async () => {
+  const entryId = entries[deleteIndex]._id;
+
+  const res = await fetch(
+    `http://localhost:5000/api/annual-event/event/${entryId}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+    }
+  );
+
+  const result = await res.json();
+
+  if (!res.ok) return alert(result.message);
+
+  // ✅ remove from UI
+  setEntries((prev) => prev.filter((_, i) => i !== deleteIndex));
+
+  setShowDelete(false);
+};
 
   return (
     <div className="bg-gray-100 min-h-screen">
@@ -211,13 +251,46 @@ useEffect(() => {
           </td>
         ))}
 
-        <td className="px-4 py-3">
-          <div className="flex justify-center gap-4">
-            <Eye size={18} className="text-blue-500 cursor-pointer" />
-            <Pencil size={18} className="text-gray-600 cursor-pointer" />
-            <Trash2 size={18} className="text-red-500 cursor-pointer" />
-          </div>
-        </td>
+    <td className="px-4 py-3">
+  <div className="flex justify-center gap-4">
+
+    {/* VIEW */}
+    <Eye
+      size={18}
+      className="text-blue-500 cursor-pointer"
+      onClick={() =>
+        navigate("/event-detail", {
+          state: {
+            event,
+            entry: item,   // ✅ send selected row
+          },
+        })
+      }
+    />
+
+    {/* EDIT */}
+    <Pencil
+      size={18}
+      className="text-gray-600 cursor-pointer"
+      onClick={() => {
+        setEditIndex(i);
+        setFormData(item.data);   // ✅ FIXED (was entry undefined)
+        setShowEdit(true);
+      }}
+    />
+
+    {/* DELETE */}
+    <Trash2
+      size={18}
+      className="text-red-500 cursor-pointer"
+      onClick={() => {
+        setDeleteIndex(i);
+        setShowDelete(true);
+      }}
+    />
+
+  </div>
+</td>
 
       </tr>
     ))

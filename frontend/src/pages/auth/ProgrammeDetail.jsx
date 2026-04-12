@@ -199,7 +199,8 @@ const ProgrammeDetail = () => {
   const [collapsed, setCollapsed] = useState(false);
   const { id } = useParams();
   const navigate = useNavigate();
-
+const [projects, setProjects] = useState([]);
+const [Beneficiaries, setBeneficiaries] = useState([]);
 
   const [programme, setProgramme] = useState(null);
 const [loading, setLoading] = useState(true);
@@ -236,8 +237,73 @@ useEffect(() => {
 
   fetchProgramme();
 }, [id]);
+const fetchProjects = async () => {
+  try {
+    const token = localStorage.getItem("token");
+
+    const res = await fetch(
+      `http://localhost:5000/api/projects/programme/${id}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      console.error(data.message);
+      return;
+    }
+
+    setProjects(data.projects);
+
+  } catch (err) {
+    console.error(err);
+  }
+};
+const fetchBeneficiaries = async () => {
+  try {
+    const token = localStorage.getItem("token");
+
+    const res = await fetch(
+      `http://localhost:5000/api/beneficiaries/project/${id}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      console.error(data.message);
+      return;
+    }
+
+     setBeneficiaries(data.count);
+
+  } catch (err) {
+    console.error(err);
+  }
+};
+useEffect(() => {
+  fetchProjects(); 
+   fetchBeneficiaries();
+}, [id]);
+
+const uniqueDzongkhags = [
+  ...new Set(
+    projects.flatMap((p) => p.dzongkhag || [])
+  ),
+];
+
+const dzongkhagCount = uniqueDzongkhags.length;
 
 return (
+  
     <div className="bg-gray-100 min-h-screen">
       {/* Sidebar */}
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
@@ -251,7 +317,7 @@ return (
       >
         <Navbar collapsed={collapsed} />
 
-        <div className="p-4 md:p-6 pt-20 space-y-6">
+        <div className="p-6 pt-20 space-y-6 ">
 
           {/* BACK */}
           <button
@@ -272,32 +338,32 @@ return (
           </div>
 
           {/* KPI CARDS */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {[
               {
                 title: "Beneficiaries",
-                value: "4,294",
+                value: Beneficiaries,
                 icon: <Users />,
                 color: "bg-blue-100 text-blue-600",
               },
               {
                 title: "Projects",
-                value: programme?.projects?.length || 0,
+                value: projects.length,
                 icon: <FileText />,
                 color: "bg-green-100 text-green-600",
               },
               {
                 title: "Dzongkhags",
-                value: "15",
+                value: dzongkhagCount,
                 icon: <MapPin />,
                 color: "bg-yellow-100 text-yellow-600",
               },
-              {
-                title: "Budget",
-                value: "Nu. 42,000",
-                icon: <BarChart3 />,
-                color: "bg-purple-100 text-purple-600",
-              },
+              // {
+              //   title: "Budget",
+              //   value: "Nu. 42,000",
+              //   icon: <BarChart3 />,
+              //   color: "bg-purple-100 text-purple-600",
+              // },
             ].map((item, i) => (
               <div
                 key={i}
@@ -337,29 +403,50 @@ return (
                     <th className="px-3">Partner</th>
                   </tr>
                 </thead>
-{/* 
-                <tbody>
-                  {projectsData.map((p) => (
-                    <tr
-                      key={p.id}
-                      className="border-b hover:bg-gray-50 transition"
-                    >
+<tbody>
+  {projects.length === 0 ? (
+    <tr>
+      <td colSpan="6" className="text-center py-6 text-gray-400">
+        No projects found
+      </td>
+    </tr>
+  ) : (
+    projects.map((p) => (
+      <tr
+        key={p._id}
+        className="border-b hover:bg-gray-50 transition"
+      >
+        <td
+          onClick={() => navigate(`/projects/${p._id}`)}
+          className="py-3 px-3 text-blue-600 cursor-pointer hover:underline font-medium"
+        >
+          {p.projectName}
+        </td>
 
-                      <td
-                        onClick={() => navigate(`/projects/${p.id}`)}
-                        className="py-3 px-3 text-blue-600 cursor-pointer hover:underline font-medium"
-                      >
-                        {p.name}
-                      </td>
+        <td className="px-3">
+          {p.dzongkhag?.join(", ")}
+        </td>
 
-                      <td className="px-3">{p.dzongkhag}</td>
-                      <td className="px-3">{p.startDate}</td>
-                      <td className="px-3">{p.endDate}</td>
-                      <td className="px-3">{p.donor}</td>
-                      <td className="px-3">{p.partner}</td>
-                    </tr>
-                  ))}
-                </tbody> */}
+        <td className="px-3">
+          {new Date(p.startDate).toLocaleDateString()}
+        </td>
+
+        <td className="px-3">
+          {new Date(p.endDate).toLocaleDateString()}
+        </td>
+
+        <td className="px-3">
+          {p.donor?.map(d => d.name).join(", ") || "-"}
+        </td>
+
+        <td className="px-3">
+          {p.partner?.map(p => p.name).join(", ") || "-"}
+        </td>
+      </tr>
+    ))
+  )}
+</tbody>
+              
 
               </table>
             </div>

@@ -14,6 +14,28 @@ const [canResend, setCanResend] = useState(false);
 
   const inputsRef = useRef([]);
   const [showSuccess, setShowSuccess] = useState(false);
+    const [bgImage, setBgImage] = useState("");
+  useEffect(() => {
+    const fetchBanner = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/banner");
+      const data = await res.json();
+  
+      console.log("BANNER API RESPONSE:", data);
+  
+      if (data && data.imageUrl) {
+        setBgImage(data.imageUrl);
+      } else {
+        console.warn("No banner found in DB");
+        setBgImage(""); // fallback
+      }
+    } catch (err) {
+      console.error("Fetch error:", err);
+    }
+  };
+  
+    fetchBanner();
+  }, []);
 
   const handleChange = (value, index) => {
     if (!/^[0-9]?$/.test(value)) return;
@@ -107,14 +129,14 @@ const handleResend = async () => {
 };
 
   return (
-    <div
-      className="relative w-full min-h-screen flex items-center justify-center px-3 sm:px-4"
-      style={{
-        backgroundImage: `url(${bgImage})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
-    >
+   <div
+  className="relative w-full min-h-screen flex items-center justify-center px-4"
+  style={{
+    backgroundImage: bgImage ? `url(${bgImage})` : "none",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+  }}
+>
       {/* Overlay */}
       <div className="absolute inset-0 bg-white/50 backdrop-blur-sm"></div>
 

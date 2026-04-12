@@ -22,6 +22,7 @@ const Programme = () => {
 const [loading, setLoading] = useState(true);
 const [error, setError] = useState("");
 
+
  const filteredProgrammes = programmes.filter((p) =>
   p.programmeName.toLowerCase().includes(search.toLowerCase())
 );
@@ -54,6 +55,7 @@ const [error, setError] = useState("");
 
   fetchProgrammes();
 }, []);
+
 
   const handleCreate = async () => {
   if (!formData.name.trim() || !formData.description.trim()) return;
@@ -142,8 +144,8 @@ const [error, setError] = useState("");
                     <FileText />
                   </div>
                   <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                    {prog.projects} projects
-                  </span>
+  {prog.projectCount || 0} projects
+</span>
                 </div>
 
                 <h3 className="font-semibold text-gray-700">

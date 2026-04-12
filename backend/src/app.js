@@ -9,7 +9,8 @@ const programmeRoutes = require("./routes/programmeRoutes");
 const donorpartnerRoutes = require("./routes/donorpartnerRoutes")
 const annualEventRoutes = require("./routes/annualEventRoutes")
 const bannerRoutes = require("./routes/bannerRoutes")
-
+const projectRoutes = require("./routes/projectRoutes")
+const beneficiaryRoutes = require("./routes/beneficiaryRoutes");
 const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
@@ -33,7 +34,8 @@ app.use("/api/programmes", programmeRoutes);
 app.use("/api/donor-partner", donorpartnerRoutes)
 app.use("/api/annual-event", annualEventRoutes)
 app.use("/api/banner",bannerRoutes)
-
+app.use("/api/projects", projectRoutes);
+app.use("/api/beneficiaries", beneficiaryRoutes);
 
 // Health check route
 app.get("/", (req, res) => {

@@ -38,12 +38,17 @@ const DetailEvent = () => {
 
             <h3 className="font-semibold mb-3">Details</h3>
 
-            {Object.entries(entry).map(([k, v]) => (
-              <div key={k} className="flex justify-between border-b py-2">
-                <span className="font-medium">{k}</span>
-                <span className="text-gray-500">{v}</span>
-              </div>
-            ))}
+         {Object.entries(entry?.data || entry).map(([k, v]) => (
+  <div key={k} className="flex justify-between border-b py-2">
+    <span className="font-medium">{k}</span>
+
+    <span className="text-gray-500">
+      {typeof v === "object"
+        ? v?.value ?? JSON.stringify(v)
+        : String(v)}
+    </span>
+  </div>
+))}
 
           </div>
         </div>

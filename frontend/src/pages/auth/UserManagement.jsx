@@ -112,7 +112,7 @@ setPartners(data.partners);
     // USERS delete
     if (activeTab === "users") {
       const res = await fetch(
-        `http://localhost:5000/api/auth/users/${deleteItem}`,
+        `http://localhost:5000/api/auth/user/${deleteItem}`,
         {
           method: "DELETE",
           headers: {
@@ -303,10 +303,8 @@ const handleUpdate = async () => {
             {/* BUTTON SWITCH */}
             {activeTab === "users" ? (
               <button
-               onClick={() => {
-  setShowModal(true);
-  setActiveTab("users"); // optional safety
-}}
+               onClick={() => navigate("/add-user")}
+
                 className="flex items-center gap-2 bg-blue-500 text-white px-5 py-2.5 rounded-xl shadow hover:bg-blue-600 transition"
               >
                 <Plus size={16} /> Add User
