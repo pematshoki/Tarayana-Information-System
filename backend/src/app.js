@@ -8,7 +8,7 @@ const roleRoutes = require("./routes/roleRoutes");
 const programmeRoutes = require("./routes/programmeRoutes");
 const donorpartnerRoutes = require("./routes/donorpartnerRoutes")
 const annualEventRoutes = require("./routes/annualEventRoutes")
-
+const bannerRoutes = require("./routes/bannerRoutes")
 
 const errorHandler = require("./middleware/errorHandler");
 
@@ -32,6 +32,7 @@ app.use("/api/roles", roleRoutes);
 app.use("/api/programmes", programmeRoutes);
 app.use("/api/donor-partner", donorpartnerRoutes)
 app.use("/api/annual-event", annualEventRoutes)
+app.use("/api/banner",bannerRoutes)
 
 
 // Health check route

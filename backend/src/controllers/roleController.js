@@ -81,3 +81,16 @@ exports.deleteRole = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+exports.getAllRoles = async (req, res) => {
+  try {
+    const roles = await Role.find().sort({ createdAt: -1 });
+
+    res.json({
+      roles,
+      totalRoles: roles.length,
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

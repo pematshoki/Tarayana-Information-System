@@ -4,6 +4,7 @@ const AnnualEvent = require("../models/annualEventModel");
 
 exports.createAnnualEvent = async (req, res) => {
   try {
+     console.log("REQ BODY:", req.body);
     const { eventName, fields } = req.body;
 
     if (!eventName) {
@@ -25,7 +26,24 @@ exports.createAnnualEvent = async (req, res) => {
   }
 };
 
+exports.getEventById = async (req, res) => {
+  try {
+    const { id } = req.params;
 
+    const event = await AnnualEvent.findById(id);
+
+    if (!event) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+
+    res.json({
+      data: event
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
 exports.updateAnnualEvent = async (req, res) => {
   try {
     const { id } = req.params;
@@ -69,6 +87,14 @@ exports.deleteAnnualEvent = async (req, res) => {
       message: "Annual event and its events deleted successfully"
     });
 
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+exports.getAllAnnualEvents = async (req, res) => {
+  try {
+    const events = await AnnualEvent.find();
+    res.json({ events });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
