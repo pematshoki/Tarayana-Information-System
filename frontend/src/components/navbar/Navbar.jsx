@@ -8,9 +8,11 @@ import {
   Key 
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
+import { useAuth } from '../../context/AuthContext';
 
-const Header = ({ setMobileMenuOpen, userRole = "Field Officer", userName = "Phuntsho Wangmo" }) => {
+const Navbar = ({ setMobileMenuOpen, userRole = "Field Officer", userName = "Phuntsho Wangmo" }) => {
+  const { logout } = useAuth();
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const location = useLocation();
 
@@ -29,6 +31,18 @@ const Header = ({ setMobileMenuOpen, userRole = "Field Officer", userName = "Phu
     if (path.startsWith('/po/programmes')) return { title: 'Programmes', desc: 'Manage programmes & projects' };
     if (path.startsWith('/po/beneficiaries')) return { title: 'Beneficiaries', desc: 'Beneficiary records & households' };
     if (path.startsWith('/po/reports')) return { title: 'Report & M&E', desc: 'Recent reports & exports' };
+    
+    // Admin Routes
+    if (path.startsWith('/admin')) return { title: 'Admin Panel', desc: 'System management' };
+    
+    // C&D Routes
+    if (path.startsWith('/cd')) return { title: 'C&D Dashboard', desc: 'Compliance & Documentation' };
+    
+    // Management Routes
+    if (path.startsWith('/mgmt')) return { title: 'Management', desc: 'Strategic Overview' };
+    
+    // Viewer Routes
+    if (path.startsWith('/viewer')) return { title: 'Data Viewer', desc: 'Read-only access' };
     
     return { title: 'Tarayana', desc: 'Information System' };
   };
@@ -107,4 +121,4 @@ const Header = ({ setMobileMenuOpen, userRole = "Field Officer", userName = "Phu
   );
 };
 
-export default Header;
+export default Navbar;
