@@ -7,7 +7,7 @@ import { Calendar, FileText, Sparkles } from "lucide-react";
 const GenerateReport = () => {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
-
+const [loading, setLoading] = useState(false);
   const [type, setType] = useState("");
   const [year, setYear] = useState("");
   const [fromDate, setFromDate] = useState("");
@@ -23,12 +23,79 @@ const GenerateReport = () => {
   const getMinDate = () => (year ? `${year}-01-01` : "");
   const getMaxDate = () => (year ? `${year}-12-31` : "");
 
-  const handleGenerate = () => {
-    if (!type || !year) return;
-    if (type === "quarterly" && (!fromDate || !toDate)) return;
+  const handleGenerate = async () => {
+  if (!type || !year) return;
+  if (type === "quarterly" && (!fromDate || !toDate)) return;
+
+  try {
+    setLoading(true);
+
+    const token = localStorage.getItem("token");
+
+    const payload = {
+      type,
+      year,
+      fromDate: type === "quarterly" ? fromDate : null,
+      toDate: type === "quarterly" ? toDate : null,
+
+      // FIX: backend expects arrays
+      programmes:
+        programme === "All Programmes" ? [] : [programme],
+
+      projects: [],
+      officers: [],
+      dzongkhags: [],
+
+      // FIX format mapping
+      format: format === "PDF Document"
+        ? "pdf"
+        : "excel",
+    };
+
+    const res = await fetch(
+      "http://localhost:5000/api/report/generate",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    if (!res.ok) {
+      const err = await res.json();
+      alert(err.message || "Report generation failed");
+      return;
+    }
+
+    // 🔥 FILE DOWNLOAD HANDLING
+    const blob = await res.blob();
+
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+
+    a.download =
+      format === "PDF Document"
+        ? `report-${year}.pdf`
+        : `report-${year}.xlsx`;
+
+    document.body.appendChild(a);
+    a.click();
+
+    a.remove();
+    window.URL.revokeObjectURL(url);
 
     setShowSuccess(true);
-  };
+  } catch (err) {
+    console.error(err);
+    alert("Server error while generating report");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleDone = () => {
     navigate("/reports");
@@ -217,13 +284,21 @@ const GenerateReport = () => {
               Cancel
             </button>
 
-            <button
+            {/* <button
               onClick={handleGenerate}
               className="flex items-center gap-2 bg-blue-500 text-white px-5 py-2 rounded-lg"
             >
               <Sparkles size={18} />
               Generate Report
-            </button>
+            </button> */}
+            <button
+  onClick={handleGenerate}
+  disabled={loading}
+  className="flex items-center gap-2 bg-blue-500 text-white px-5 py-2 rounded-lg disabled:opacity-50"
+>
+  <Sparkles size={18} />
+  {loading ? "Generating..." : "Generate Report"}
+</button>
           </div>
         </div>
       </div>
