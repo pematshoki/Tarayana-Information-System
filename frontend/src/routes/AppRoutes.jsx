@@ -28,44 +28,55 @@ import ProgrammeOfficerLayoutNew from '../layouts/ProgrammeOfficerLayout';
 
 import AdminLayout from '../layouts/AdminLayout';
 import ManagementLayout from '../layouts/ManagementLayout';
+import MrCdLayout from '../layouts/MrCdLayout';
 
 // New Pages
 import AdminDashboard from '../pages/admin/Dashboard';
-
+import AdminUserManagement from '../pages/admin/UserManagement';
+import AdminSettings from '../pages/admin/Settings';
+import AdminAddUser from '../pages/admin/AddUser';
+import AdminAnnualEvents from '../pages/admin/AnnualEvents';
+import AdminDetailEvent from '../pages/admin/DetailEvent';
+import AdminEvent from '../pages/admin/Event';
+import AdminProgramme from '../pages/admin/Programme';
+import AdminProgrammeDetail from '../pages/admin/ProgrammeDetail';
+import AdminProjectDetail from '../pages/admin/ProjectDetail';
+import AdminGenerateReport from '../pages/admin/GenerateReport';
+import AdminBeneficiaries from '../pages/admin/Beneficiaries';
 
 import ManagementDashboard from '../pages/management/Dashboard';
+import ManagementAnalytics from '../pages/management/Analytics';
+import ManagementImpact from '../pages/management/Impact';
 
+// MR-CD Pages
+import CdDashboard from '../pages/MR-CD/CdDashboard';
+import MrDashboard from '../pages/MR-CD/MrDashboard';
+import Archives from '../pages/MR-CD/Archives';
+import CdReports from '../pages/MR-CD/CdReports';
+import MrReports from '../pages/MR-CD/MrReports';
+import CdGenerateReport from '../pages/MR-CD/CdGenerateReport';
+import MrGenerateReport from '../pages/MR-CD/MrGenerateReport';
+import ValidationQueue from '../pages/MR-CD/ValidationQueue';
+import ValidationProjects from '../pages/MR-CD/ValidationProjects';
+import ValidationDetails from '../pages/MR-CD/ValidationDetails';
+import OfficerDetails from '../pages/MR-CD/OfficerDetails';
+import MrCdProgramme from '../pages/MR-CD/MrCdProgramme';
+import MrCdProjectDetails from '../pages/MR-CD/MrCdProjectDetails';
 
 import ProtectedRoute from './ProtectedRoute';
 import { ROLES } from '../utils/roles';
 import { useAuth } from '../context/AuthContext';
 
-const RootRedirect = () => {
-  const { user } = useAuth();
-  
-  if (!user) return <Navigate to="/auth/login" replace />;
-  
-  switch (user.role) {
-    case ROLES.ADMIN:
-      return <Navigate to="/admin/dashboard" replace />;
-    case ROLES.PROGRAMME_OFFICER:
-      return <Navigate to="/po/dashboard" replace />;
-    case ROLES.MANAGEMENT:
-      return <Navigate to="/mgmt/dashboard" replace />;
-    default:
-      return <Navigate to="/dashboard" replace />;
-  }
-};
-
 const AppRoutes = () => {
   return (
     <Routes>
       {/* Root Redirect */}
-      <Route path="/" element={<RootRedirect />} />
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/login" element={<Navigate to="/auth/login" replace />} />
 
-      {/* Field Officer Routes */}
-      <Route path="/" element={
-        <ProtectedRoute allowedRoles={[ROLES.FIELD_OFFICER]}>
+      {/* Field Officer Routes (Path-less layout) */}
+      <Route element={
+        <ProtectedRoute>
           <FieldOfficerLayoutNew />
         </ProtectedRoute>
       }>
@@ -82,7 +93,7 @@ const AppRoutes = () => {
 
       {/* Programme Officer Routes */}
       <Route path="/po" element={
-        <ProtectedRoute allowedRoles={[ROLES.PROGRAMME_OFFICER]}>
+        <ProtectedRoute>
           <ProgrammeOfficerLayoutNew />
         </ProtectedRoute>
       }>
@@ -100,25 +111,86 @@ const AppRoutes = () => {
 
       {/* Admin Routes */}
       <Route path="/admin" element={
-        <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+        <ProtectedRoute>
           <AdminLayout />
         </ProtectedRoute>
       }>
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="users" element={<AdminUserManagement />} />
+        <Route path="settings" element={<AdminSettings />} />
+        <Route path="annual-events" element={<AdminAnnualEvents />} />
+        <Route path="events/:id" element={<AdminDetailEvent />} />
+        <Route path="event-management/:id" element={<AdminEvent />} />
+        <Route path="programmes" element={<AdminProgramme />} />
+        <Route path="programmes/:id" element={<AdminProgrammeDetail />} />
+        <Route path="projects/:id" element={<AdminProjectDetail />} />
+        <Route path="beneficiaries" element={<AdminBeneficiaries />} />
       </Route>
 
-      Management Routes
+      {/* Direct routes captured from Admin pages navigation */}
+      <Route path="/add-user" element={<AdminAddUser />} />
+      <Route path="/usersmanagement" element={<AdminUserManagement />} />
+      <Route path="/generatereport" element={<AdminGenerateReport />} />
+
+      {/* Management Routes */}
       <Route path="/mgmt" element={
-        <ProtectedRoute allowedRoles={[ROLES.MANAGEMENT]}>
+        <ProtectedRoute>
           <ManagementLayout />
         </ProtectedRoute>
       }>
         <Route index element={<Navigate to="/mgmt/dashboard" replace />} />
         <Route path="dashboard" element={<ManagementDashboard />} />
-
+        <Route path="analytics" element={<ManagementAnalytics />} />
+        <Route path="impact" element={<ManagementImpact />} />
       </Route>
 
+      {/* CD Officer Routes */}
+      <Route path="/cd" element={
+        <ProtectedRoute>
+          <MrCdLayout />
+        </ProtectedRoute>
+      }>
+        <Route index element={<Navigate to="/cd/dashboard" replace />} />
+        <Route path="dashboard" element={<CdDashboard />} />
+        <Route path="archives" element={<Archives />} />
+        <Route path="reports" element={<CdReports />} />
+        <Route path="generate-report" element={<CdGenerateReport />} />
+        <Route path="validation-queue" element={<ValidationQueue />} />
+        <Route path="validation-queue/:programme" element={<ValidationProjects />} />
+        <Route path="validation-queue/project/:id" element={<ValidationDetails />} />
+        <Route path="archives/officer/:officerName" element={<OfficerDetails />} />
+        <Route path="archives/programme/:programmeName" element={<MrCdProgramme />} />
+        <Route path="archives/programme/:programmeName/project/:projectName" element={<MrCdProjectDetails />} />
+      </Route>
+
+      {/* MR Officer Routes */}
+      <Route path="/mr" element={
+        <ProtectedRoute>
+          <MrCdLayout />
+        </ProtectedRoute>
+      }>
+        <Route index element={<Navigate to="/mr/dashboard" replace />} />
+        <Route path="dashboard" element={<MrDashboard />} />
+        <Route path="archives" element={<Archives />} />
+        <Route path="reports" element={<MrReports />} />
+        <Route path="generate-report" element={<MrGenerateReport />} />
+        <Route path="archives/officer/:officerName" element={<OfficerDetails />} />
+        <Route path="archives/programme/:programmeName" element={<MrCdProgramme />} />
+        <Route path="archives/programme/:programmeName/project/:projectName" element={<MrCdProjectDetails />} />
+      </Route>
+
+      {/* Legacy MR-CD Routes (Redirects) */}
+      <Route path="/mr-cd" element={<Navigate to="/cd/dashboard" replace />} />
+      <Route path="/cddashboard" element={<Navigate to="/cd/dashboard" replace />} />
+      <Route path="/mrdashboard" element={<Navigate to="/mr/dashboard" replace />} />
+      <Route path="/cdarchives" element={<Navigate to="/cd/archives" replace />} />
+      <Route path="/mrarchives" element={<Navigate to="/mr/archives" replace />} />
+      <Route path="/cdreports" element={<Navigate to="/cd/reports" replace />} />
+      <Route path="/mrreports" element={<Navigate to="/mr/reports" replace />} />
+      <Route path="/cdgeneratereport" element={<Navigate to="/cd/generate-report" replace />} />
+      <Route path="/mrgeneratereport" element={<Navigate to="/mr/generate-report" replace />} />
+      <Route path="/validationqueue" element={<Navigate to="/cd/validation-queue" replace />} />
       {/* Unauthorized Page */}
       <Route path="/unauthorized" element={
         <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -136,7 +208,7 @@ const AppRoutes = () => {
       } />
 
       {/* Fallback for unhandled routes */}
-      <Route path="*" element={<RootRedirect />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 };
