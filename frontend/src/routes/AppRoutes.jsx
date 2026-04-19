@@ -19,8 +19,10 @@ import {
   Programmes as POProgrammes,
   Beneficiaries as POBeneficiaries,
   Reports as POReports,
-  AddNewProject as POAddNewProject
+  AddNewProject as POAddNewProject,
+  RegisterBeneficiary as PORegisterBeneficiary,
 } from '../pages/programmeOfficer';
+import POSpecificProjectDetail from '../pages/programmeOfficer/SpecificProjectDetail';
 
 // Layouts (Moved to src/layouts)
 import FieldOfficerLayoutNew from '../layouts/FieldOfficerLayout';
@@ -90,12 +92,13 @@ const AppRoutes = () => {
         <Route path="dashboard" element={<PODashboard />} />
         <Route path="programmes" element={<POProgrammes />} />
         <Route path="beneficiaries" element={<POBeneficiaries />} />
-        <Route path="beneficiaries/register" element={<RegisterBeneficiary />} />
+        <Route path="beneficiaries/register" element={<PORegisterBeneficiary />} />
         <Route path="reports" element={<POReports />} />
         <Route path="reports/generate" element={<GenerateReport />} />
         <Route path="programmes/add" element={<POAddNewProject />} />
         <Route path="programmes/:type/:id" element={<ProjectDetail />} />
-        <Route path="programmes/detail/:id" element={<SpecificProjectDetail />} />
+        <Route path="programmes/detail/:id" element={<POSpecificProjectDetail />} />
+        
       </Route>
 
       {/* Admin Routes */}

@@ -4,3 +4,5 @@ export { default as Programmes } from './Programmes';
 export { default as Beneficiaries } from './Beneficiaries';
 export { default as Reports } from './Reports';
 export { default as AddNewProject } from './AddNewProject';
+export { default as SpecificProjectDetail } from './SpecificProjectDetail';
+export { default as RegisterBeneficiary } from './RegisterBeneficiary';

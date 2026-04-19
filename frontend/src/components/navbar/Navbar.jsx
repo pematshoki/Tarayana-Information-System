@@ -74,9 +74,7 @@ const Navbar = ({ setMobileMenuOpen, userRole = "Field Officer", userName = "Phu
             <p className="text-sm font-bold text-gray-900">{userName}</p>
             <p className="text-xs text-gray-500">{userRole}</p>
           </div>
-          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden border-2 border-transparent hover:border-blue-100 transition-all">
-            <User size={24} className="text-gray-400" />
-          </div>
+          
           <ChevronDown size={16} className={cn("text-gray-400 transition-transform", profileDropdownOpen && "rotate-180")} />
         </button>
 
@@ -97,10 +95,6 @@ const Navbar = ({ setMobileMenuOpen, userRole = "Field Officer", userName = "Phu
                 <p className="text-xs text-gray-400">12220080.gcit@rub.edu.bt</p>
               </div>
               
-              <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all">
-                <User size={18} />
-                <span>Profile View</span>
-              </button>
               
               <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all">
                 <Key size={18} />
