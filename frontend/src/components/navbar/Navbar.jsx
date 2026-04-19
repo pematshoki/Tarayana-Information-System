@@ -35,8 +35,11 @@ const Navbar = ({ setMobileMenuOpen, userRole = "Field Officer", userName = "Phu
     // Admin Routes
     if (path.startsWith('/admin')) return { title: 'Admin Panel', desc: 'System management' };
     
-    // C&D Routes
-    if (path.startsWith('/cd')) return { title: 'C&D Dashboard', desc: 'Compliance & Documentation' };
+    // CD Routes
+    if (path.startsWith('/cd')) return { title: 'CD Dashboard', desc: 'Compliance & Documentation' };
+    
+    // MR Routes
+    if (path.startsWith('/mr')) return { title: 'MR Dashboard', desc: 'Monitoring & Reporting' };
     
     // Management Routes
     if (path.startsWith('/mgmt')) return { title: 'Management', desc: 'Strategic Overview' };
