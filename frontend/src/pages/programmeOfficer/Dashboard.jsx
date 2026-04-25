@@ -1,150 +1,198 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  Users, 
-  FileText, 
-  MapPin, 
-  TrendingUp
+  Users, FileText, MapPin, TrendingUp, Activity, Layers, ChevronLeft, ChevronRight 
 } from 'lucide-react';
+import axios from 'axios';
 import StatCard from '../../components/ui/StatCard';
 import ChartCard from '../../components/ui/ChartCard';
 
-const beneficiariesByProgrammeData = [
-  { name: 'Social Dev', value: 5200, color: '#3498db' },
-  { name: 'Economic Dev', value: 3800, color: '#2ecc71' },
-  { name: 'Environment', value: 3000, color: '#f1c40f' },
-  { name: 'Research', value: 1200, color: '#9b59b6' },
-  { name: 'Advocacy', value: 2200, color: '#e67e22' },
-  { name: 'Tarayana Clubs', value: 2500, color: '#2980b9' },
-];
-
-const projectsByProgrammeData = [
-  { name: 'Social Dev', value: 520, color: '#3498db' },
-  { name: 'Economic Dev', value: 380, color: '#2ecc71' },
-  { name: 'Environment', value: 300, color: '#f1c40f' },
-  { name: 'Research', value: 120, color: '#9b59b6' },
-  { name: 'Advocacy', value: 220, color: '#e67e22' },
-  { name: 'Tarayana Clubs', value: 250, color: '#2980b9' },
-];
-
-const projectsByDzongkhagData = [
-  { name: 'Thimphu', value: 450, color: '#3498db' },
-  { name: 'Punakha', value: 480, color: '#2ecc71' },
-  { name: 'Wangdue', value: 380, color: '#f1c40f' },
-  { name: 'Bumthang', value: 320, color: '#9b59b6' },
-  { name: 'Mongar', value: 550, color: '#e74c3c' },
-  { name: 'Gasa', value: 350, color: '#2980b9' },
-];
-
-const projectsByYearData = [
-  { name: '2021', value: 490, color: '#3498db' },
-  { name: '2022', value: 460, color: '#2ecc71' },
-  { name: '2023', value: 340, color: '#f1c40f' },
-  { name: '2024', value: 120, color: '#9b59b6' },
-  { name: '2025', value: 220, color: '#e67e22' },
-  { name: '2026', value: 400, color: '#2980b9' },
-];
-
 const Dashboard = () => {
-  const [leftChartFilter, setLeftChartFilter] = useState('programme');
-  const [rightChartFilter, setRightChartFilter] = useState('programme');
-  const [isLeftDropdownOpen, setIsLeftDropdownOpen] = useState(false);
-  const [isRightDropdownOpen, setIsRightDropdownOpen] = useState(false);
+  const [view, setView] = useState('projects'); 
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Filter States
+  const [leftFilter, setLeftFilter] = useState('programme');
+  const [rightFilter, setRightFilter] = useState('programme');
+
+  // Pagination States
+  const [leftIdx, setLeftIdx] = useState(0);
+  const [rightIdx, setRightIdx] = useState(0);
+
+  const user = JSON.parse(localStorage.getItem('user'));
+  const userId = user?._id || user?.id;
+  const roleName = user?.role?.roleName || "ProgrammeOfficer";
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (!userId) return;
+      try {
+        setLoading(true);
+        const response = await axios.get(
+          `http://localhost:5000/api/projects/dashboard-summary/${roleName}/${userId}`
+        );
+        if (response.data.success) {
+          setData(response.data);
+        }
+      } catch (err) {
+        console.error("Dashboard Fetch Error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, [userId, roleName]);
 
   const filterOptions = [
-    { id: 'programme', label: 'All Programmes' },
+    { id: 'programme', label: 'Programme' },
     { id: 'dzongkhag', label: 'Dzongkhag' },
     { id: 'year', label: 'Year' }
   ];
 
-  const getLeftChartData = () => {
-    switch (leftChartFilter) {
-      case 'dzongkhag': 
-        return projectsByDzongkhagData.map(d => ({ ...d, value: d.value * 10 }));
-      case 'year': 
-        return projectsByYearData.map(y => ({ ...y, value: y.value * 10 }));
-      default: 
-        return beneficiariesByProgrammeData;
-    }
+  const getPaginatedData = (chartSource, filterType, startIndex) => {
+    if (!chartSource || !chartSource[filterType]) return [];
+    return chartSource[filterType].slice(startIndex, startIndex + 6).map(item => ({
+      name: item.name || item._id || 'N/A',
+      value: item.value || item.count || 0
+    }));
   };
 
-  const getLeftChartTitle = () => {
-    switch (leftChartFilter) {
-      case 'dzongkhag': return 'Beneficiaries by Dzongkhag';
-      case 'year': return 'Beneficiaries by Year';
-      default: return 'Beneficiaries by Programme';
-    }
-  };
+  if (loading || !data) return <div className="flex h-96 items-center justify-center font-medium">Loading Dashboard Data...</div>;
 
-  const getRightChartData = () => {
-    switch (rightChartFilter) {
-      case 'dzongkhag': return projectsByDzongkhagData;
-      case 'year': return projectsByYearData;
-      default: return projectsByProgrammeData;
-    }
-  };
-
-  const getRightChartTitle = () => {
-    switch (rightChartFilter) {
-      case 'dzongkhag': return 'Projects by Dzongkhag';
-      case 'year': return 'Projects by Year';
-      default: return 'Projects by Programme';
-    }
-  };
-
-  const getRightChartSubtitle = () => {
-    switch (rightChartFilter) {
-      case 'dzongkhag': return 'Filter by dzongkhag area';
-      case 'year': return 'Filter by year';
-      default: return 'Filter by programme area';
-    }
-  };
-
-  const currentLeftFilterLabel = filterOptions.find(opt => opt.id === leftChartFilter)?.label;
-  const currentRightFilterLabel = filterOptions.find(opt => opt.id === rightChartFilter)?.label;
+  const { summary, charts } = data;
 
   return (
-    <div className="space-y-8">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard label="Total Beneficiaries" value="5100" icon={Users} colorClass="bg-blue-50 text-blue-400" />
-        <StatCard label="Indirect Beneficiaries" value="5000" icon={FileText} colorClass="bg-green-50 text-green-500" />
-        <StatCard label="Direct Beneficiaries" value="100" icon={MapPin} colorClass="bg-yellow-50 text-yellow-500" />
-        <StatCard label="Total Projects" value="80" icon={TrendingUp} colorClass="bg-purple-50 text-purple-500" />
+    <div className="space-y-8 p-4 animate-in fade-in duration-500">
+      {/* HEADER SECTION */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 capitalize">{view} Overview</h1>
+          <p className="text-sm text-gray-500">Analytics for <b>{user?.email}</b></p>
+        </div>
         
-        <StatCard label="Total Beneficiaries" value="12,000" icon={Users} colorClass="bg-blue-50 text-blue-400" />
-        <StatCard label="Active Programme" value="6" icon={FileText} colorClass="bg-green-50 text-green-500" />
-        <StatCard label="Dzongkhags Covered" value="20" icon={MapPin} colorClass="bg-yellow-50 text-yellow-500" />
-        <StatCard label="Project this Year" value="47" icon={TrendingUp} colorClass="bg-purple-50 text-purple-500" />
+        <div className="flex p-1 bg-gray-100 rounded-xl border border-gray-200">
+          <button 
+            onClick={() => setView('projects')}
+            className={`flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold transition-all ${view === 'projects' ? 'bg-white shadow text-[#3498db]' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <Layers size={18} /> Projects
+          </button>
+          <button 
+            onClick={() => setView('interventions')}
+            className={`flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold transition-all ${view === 'interventions' ? 'bg-white shadow text-[#3498db]' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <Activity size={18} /> Interventions
+          </button>
+        </div>
       </div>
 
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <ChartCard 
-          title={getLeftChartTitle()}
-          subtitle="Filter by programme area"
-          data={getLeftChartData()}
-          filterLabel={currentLeftFilterLabel}
-          isDropdownOpen={isLeftDropdownOpen}
-          setIsDropdownOpen={setIsLeftDropdownOpen}
-          filterOptions={filterOptions}
-          onOptionSelect={setLeftChartFilter}
-          activeFilterId={leftChartFilter}
-          yAxisTicks={[0, 1500, 3000, 4500, 6000]}
-        />
+      {view === 'projects' ? (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <StatCard label="Total Projects" value={summary.totalProjects} icon={TrendingUp} colorClass="bg-blue-50 text-blue-500" />
+            <StatCard label="Direct Reach" value={summary.totalDirect} icon={Users} colorClass="bg-indigo-50 text-indigo-500" />
+            <StatCard label="Indirect Reach" value={summary.totalIndirect} icon={Users} colorClass="bg-green-50 text-green-500" />
+            <StatCard label="Programmes" value={summary.programmes} icon={FileText} colorClass="bg-purple-50 text-purple-500" />
+            <StatCard label="Dzongkhags" value={summary.dzongkhags} icon={MapPin} colorClass="bg-orange-50 text-orange-500" />
+          </div>
 
-        <ChartCard 
-          title={getRightChartTitle()}
-          subtitle={getRightChartSubtitle()}
-          data={getRightChartData()}
-          filterLabel={currentRightFilterLabel}
-          isDropdownOpen={isRightDropdownOpen}
-          setIsDropdownOpen={setIsRightDropdownOpen}
-          filterOptions={filterOptions}
-          onOptionSelect={setRightChartFilter}
-          activeFilterId={rightChartFilter}
-          yAxisTicks={[0, 150, 300, 450, 600]}
-        />
-      </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            {/* LEFT CHART: BENEFICIARIES */}
+            <div className="flex flex-col">
+              <ChartCard 
+                title={`Beneficiaries by ${filterOptions.find(o => o.id === leftFilter)?.label}`}
+                subtitle={`Filtered Beneficiaries by ${filterOptions.find(o => o.id === leftFilter)?.label}`}
+                data={getPaginatedData(charts.beneficiaries, leftFilter, leftIdx)}
+                filterOptions={filterOptions}
+                activeFilterId={leftFilter}
+                onOptionSelect={(id) => { setLeftFilter(id); setLeftIdx(0); }}
+                yAxisLabel="No.of Beneficiaries"
+                xAxisLabel={`${filterOptions.find(o => o.id === leftFilter)?.label} Categories`}
+              />
+              <div className="flex justify-center items-center gap-6 mt-4 text-gray-400">
+                <button 
+                  disabled={leftIdx === 0}
+                  onClick={() => setLeftIdx(prev => Math.max(0, prev - 1))}
+                  className="p-1 hover:bg-gray-100 rounded-full disabled:opacity-20 transition-colors"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-300">Scroll Axis</span>
+                <button 
+                  disabled={leftIdx + 6 >= (charts.beneficiaries[leftFilter]?.length || 0)}
+                  onClick={() => setLeftIdx(prev => prev + 1)}
+                  className="p-1 hover:bg-gray-100 rounded-full disabled:opacity-20 transition-colors"
+                >
+                  <ChevronRight size={24} />
+                </button>
+              </div>
+            </div>
+
+            {/* RIGHT CHART: PROJECTS */}
+            <div className="flex flex-col">
+              <ChartCard 
+                title={`Projects by ${filterOptions.find(o => o.id === rightFilter)?.label}`}
+                subtitle={`Filtered Projects by ${filterOptions.find(o => o.id === rightFilter)?.label}`}
+                data={getPaginatedData(charts.projects, rightFilter, rightIdx)}
+                filterOptions={filterOptions}
+                activeFilterId={rightFilter}
+                onOptionSelect={(id) => { setRightFilter(id); setRightIdx(0); }}
+                yAxisLabel="No.of Projects"
+                xAxisLabel={`${filterOptions.find(o => o.id === rightFilter)?.label} Categories`}
+              />
+              <div className="flex justify-center items-center gap-6 mt-4 text-gray-400">
+                <button 
+                  disabled={rightIdx === 0}
+                  onClick={() => setRightIdx(prev => Math.max(0, prev - 1))}
+                  className="p-1 hover:bg-gray-100 rounded-full disabled:opacity-20 transition-colors"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-300">Scroll Axis</span>
+                <button 
+                  disabled={rightIdx + 6 >= (charts.projects[rightFilter]?.length || 0)}
+                  onClick={() => setRightIdx(prev => prev + 1)}
+                  className="p-1 hover:bg-gray-100 rounded-full disabled:opacity-20 transition-colors"
+                >
+                  <ChevronRight size={24} />
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 animate-in slide-in-from-bottom-4">
+          {Object.entries(summary.activityTotals || {}).map(([name, info], idx) => (
+            <div 
+              key={idx} 
+              className={`p-8 rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center transition-all hover:shadow-md ${
+                info.isTraining ? "bg-orange-50/30" : "bg-blue-50/30"
+              }`}
+            >
+               {/* Subtext */}
+              <span className="text-xs font-semibold text-gray-400 mt-2 uppercase tracking-widest">
+                Total number of
+              </span>
+
+              {/* Activity Name - Made Big and Bold */}
+              <h3 className={`text-lg font-bold mb-2 uppercase tracking-tight ${
+                info.isTraining ? "text-orange-600" : "text-blue-600"
+              }`}>
+                {name}
+              </h3>
+              
+              {/* Count - Large and Clear */}
+              <p className="text-3xl font-black text-gray-900">
+                {info.count}
+              </p>
+              
+             
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

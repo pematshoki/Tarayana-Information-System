@@ -6,12 +6,23 @@ import SuccessModal from '../../components/modals/SuccessModal';
 
 const RegisterBeneficiary = () => {
   const navigate = useNavigate();
+  
+  // 🔐 1. REAL SESSION RETRIEVAL
+  const token = localStorage.getItem("token");
+  const storedUser = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : null;
+  const PO_ID = storedUser?.id || storedUser?._id;
+
   const [projects, setProjects] = useState([]);
   const [isSuccess, setIsSuccess] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  const DUMMY_PO_ID = "69daaf4430ceb65afddba2c3";
-
+  // 🛡️ 2. AUTHENTICATION GUARD
+  useEffect(() => {
+    if (!token || !storedUser) {
+      console.warn("Unauthorized access. Redirecting...");
+      navigate("/login", { replace: true });
+    }
+  }, [token, storedUser, navigate]);
 
   const [formData, setFormData] = useState({
     projectId: '',
@@ -27,23 +38,32 @@ const RegisterBeneficiary = () => {
     indirectBeneficiaries: { male: 0, female: 0 },
     keyActivities: [{ 
       activityName: '', 
-      totalQuantity: 1, 
-      unit: 'Nos', 
+      totalQuantity: '', 
+      unit: '', 
       remarks: '',
       isTraining: false,
-      trainingDetails: { date: '', type: '' }
+      trainingDetails: { date: '', type: '' },
+      specifications: [] 
     }]
   });
 
+  // 📡 3. FETCH PROJECTS USING AUTH HEADERS
   useEffect(() => {
     const fetchProjects = async () => {
+      if (!PO_ID || !token) return;
       try {
-        const res = await axios.get(`http://localhost:5000/api/projects/programme-officer/${DUMMY_PO_ID}`);
+        const res = await axios.get(`http://localhost:5000/api/projects/programme-officer/${PO_ID}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         setProjects(res.data.data || []);
-      } catch (err) { console.error("Fetch error", err); }
+      } catch (err) { 
+        console.error("Fetch error", err);
+        if (err.response?.status === 401) navigate("/login");
+      }
     };
     fetchProjects();
-  }, []);
+  }, [PO_ID, token]);
+  
 
   const getTextColor = (value) => value ? "text-black" : "text-gray-400";
 
@@ -62,53 +82,138 @@ const RegisterBeneficiary = () => {
     setFormData({
       ...formData,
       keyActivities: [...formData.keyActivities, { 
-        activityName: '', totalQuantity: 1, unit: 'Nos', remarks: '',
+        activityName: '', totalQuantity: 0, unit: '', remarks: '',
         isTraining: lastItemType || false,
-        trainingDetails: { date: '', type: '' }
+        trainingDetails: { date: '', type: '' },
+        specifications: ['']
       }]
     });
   };
 
-  const handleActivityChange = (idx, field, value) => {
-    const newActs = [...formData.keyActivities];
-    if (field.includes('.')) {
-      const [parent, child] = field.split('.');
-      newActs[idx][parent][child] = value;
-    } else {
-      newActs[idx][field] = value;
+
+
+const handleActivityChange = (idx, field, value) => {
+  const newActs = [...formData.keyActivities];
+
+  if (!newActs[idx].specifications) {
+    newActs[idx].specifications = [];
+  }
+
+  // quantity controls specs length
+  if (field === "totalQuantity") {
+    const qty = Math.max(0, parseInt(value) || 0);
+
+    newActs[idx].totalQuantity = qty;
+
+    const old = newActs[idx].specifications || [];
+
+    newActs[idx].specifications = Array.from(
+      { length: qty },
+      (_, i) => old[i] || ""
+    );
+  }
+
+  // individual spec input
+  else if (field === "specifications") {
+    const { sIdx, val } = value;
+
+    const clean = val.replace(/[^0-9]/g, "");
+
+    newActs[idx].specifications[sIdx] = clean;
+  }
+
+  // training toggle
+  else if (field === "isTraining") {
+    newActs[idx].isTraining = value;
+
+    if (value) {
+      newActs[idx].totalQuantity = 1;
+      newActs[idx].unit = "";
+      newActs[idx].specifications = [];
     }
-    setFormData({ ...formData, keyActivities: newActs });
-  };
+  }
 
+  else if (field.includes(".")) {
+    const [p, c] = field.split(".");
+    newActs[idx][p] = {
+      ...newActs[idx][p],
+      [c]: value
+    };
+  }
 
+  else {
+    newActs[idx][field] = value;
+  }
+
+  setFormData({ ...formData, keyActivities: newActs });
+};
 
 
 const handleSubmit = async () => {
-  try {
-    const payload = {
-      ...formData,
-      keyActivities: formData.keyActivities.map(act => ({
-        ...act,
-        specifications: act.remarks
-          ? act.remarks.split(',').map(s => s.trim())
-          : []
-      }))
-    };
+    try {
+      // Validate
+      for (let act of formData.keyActivities) {
+        if (!act.isTraining && (!act.unit || act.unit.trim() === "")) {
+          alert("Please select unit for all activities");
+          return;
+        }
+      }
 
-    console.log("📤 Sending Payload:", payload);
+      // Clean payload
+      const payload = {
+        ...formData,
+        keyActivities: formData.keyActivities.map(act => {
+          if (act.isTraining) {
+            return {
+              activityName: act.activityName,
+              isTraining: true,
+              trainingDetails: act.trainingDetails,
+              totalQuantity: 1,
+              specifications: []
+            };
+          }
+          return {
+            activityName: act.activityName,
+            isTraining: false,
+            totalQuantity: act.totalQuantity,
+            unit: act.unit,
+            specifications: Array.isArray(act.specifications) ? act.specifications : []
+          };
+        })
+      };
 
-    await axios.post('http://localhost:5000/api/beneficiaries', payload);
+      // API call with Token
+      await axios.post(
+        "http://localhost:5000/api/beneficiaries",
+        payload,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
 
-    setIsSuccess(true);
-    setShowConfirm(false);
-    setTimeout(() => navigate('/po/beneficiaries'), 2000);
+      setIsSuccess(true);
+      setShowConfirm(false);
 
-  } catch (err) {
-    console.error("❌ Error:", err);
-    alert(err.response?.data?.message || "Registration failed");
-  }
-};
-return (
+      setTimeout(() => {
+        navigate("/po/beneficiaries");
+      }, 2000);
+
+    } catch (err) {
+      console.error("❌ Error:", err);
+      alert(err.response?.data?.message || "Registration failed");
+    }
+  };
+
+  // 🛡️ Guard Clause
+  if (!token || !storedUser) return null;
+
+
+
+
+
+
+
+  return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20 px-4 pt-10">
       <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-500 font-medium hover:text-blue-500 transition-colors">
         <ArrowLeft size={18}/> Back
@@ -145,8 +250,8 @@ return (
 
             <div className="space-y-1">
               <label className="text-sm font-bold text-gray-700">CID <span className="text-red-500">*</span></label>
-              <input required type="text" maxLength={11} className={`w-full p-3 border rounded-xl outline-none ${getTextColor(formData.cid)}`} placeholder="Enter 11 Digit CID" 
-                value={formData.cid} onChange={e => setFormData({...formData, cid: e.target.value})} />
+              <input required type="text" maxLength={11} className={`w-full p-3 border rounded-xl outline-none ${getTextColor(formData.cid)}`} placeholder="Enter 11 Digit CID (Numbers only)" 
+                value={formData.cid} onChange={e => setFormData({...formData, cid: e.target.value.replace(/[^0-9]/g, '')})} />
             </div>
 
             <div className="space-y-1 relative">
@@ -190,26 +295,41 @@ return (
 
             <div className="space-y-1">
               <label className="text-sm font-bold text-gray-700">Thram No <span className="text-red-500">*</span></label>
-              <input required type="text" className={`w-full p-3 border rounded-xl outline-none ${getTextColor(formData.thramNo)}`} placeholder="Enter Thram No" 
-                value={formData.thramNo} onChange={e => setFormData({...formData, thramNo: e.target.value})} />
+              <input required type="text" className={`w-full p-3 border rounded-xl outline-none ${getTextColor(formData.thramNo)}`} placeholder="Enter Thram No (Numbers only)" 
+                value={formData.thramNo} onChange={e => setFormData({...formData, thramNo: e.target.value.replace(/[^0-9]/g, '')})} />
             </div>
           </div>
 
-          <div className="p-4 bg-gray-50 rounded-2xl space-y-4">
-            <h3 className="font-bold text-xs text-gray-500 uppercase">Indirect Beneficiaries</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs text-gray-400">Male</label>
-                <input type="number" className={`p-3 border rounded-xl w-full outline-none ${getTextColor(formData.indirectBeneficiaries.male)}`} 
-                  value={formData.indirectBeneficiaries.male} onChange={e => setFormData({...formData, indirectBeneficiaries: {...formData.indirectBeneficiaries, male: e.target.value}})} />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-gray-400">Female</label>
-                <input type="number" className={`p-3 border rounded-xl w-full outline-none ${getTextColor(formData.indirectBeneficiaries.female)}`} 
-                  value={formData.indirectBeneficiaries.female} onChange={e => setFormData({...formData, indirectBeneficiaries: {...formData.indirectBeneficiaries, female: e.target.value}})} />
-              </div>
-            </div>
+          <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <label className="text-xs text-gray-400">Male</label>
+            <input 
+              type="number" 
+              min="0" 
+              className={`p-3 border rounded-xl w-full outline-none ${getTextColor(formData.indirectBeneficiaries.male)}`} 
+              value={formData.indirectBeneficiaries.male === 0 ? '' : formData.indirectBeneficiaries.male} 
+              placeholder="0"
+              onChange={e => {
+                const val = e.target.value === '' ? 0 : parseInt(e.target.value);
+                setFormData({...formData, indirectBeneficiaries: {...formData.indirectBeneficiaries, male: Math.max(0, val)}});
+              }} 
+            />
           </div>
+          <div className="space-y-1">
+            <label className="text-xs text-gray-400">Female</label>
+            <input 
+              type="number" 
+              min="0" 
+              className={`p-3 border rounded-xl w-full outline-none ${getTextColor(formData.indirectBeneficiaries.female)}`} 
+              value={formData.indirectBeneficiaries.female === 0 ? '' : formData.indirectBeneficiaries.female} 
+              placeholder="0"
+              onChange={e => {
+                const val = e.target.value === '' ? 0 : parseInt(e.target.value);
+                setFormData({...formData, indirectBeneficiaries: {...formData.indirectBeneficiaries, female: Math.max(0, val)}});
+              }} 
+            />
+          </div>
+        </div>
 
           <div className="space-y-4">
             <div className="flex justify-between items-center">
@@ -259,29 +379,63 @@ return (
                 ) : (
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-xs font-bold text-gray-500 uppercase">Quantity</label>
-                      <input required type="number" className={`w-full p-2 border rounded-lg outline-none ${getTextColor(act.totalQuantity)}`} 
-                        value={act.totalQuantity} onChange={e => handleActivityChange(idx, 'totalQuantity', e.target.value)} />
-                    </div>
-                    <div className="space-y-1 relative">
-                      <label className="text-xs font-bold text-gray-500 uppercase">Unit</label>
-                      <select required className={`w-full p-2 border rounded-lg outline-none appearance-none bg-white ${getTextColor(act.unit)}`} 
-                        value={act.unit} onChange={e => handleActivityChange(idx, 'unit', e.target.value)}>
-                        <option value="Nos">Nos</option>
-                        <option value="Litres">Litres</option>
-                        <option value="Acres">Acres</option>
-                        <option value="Kg">Kg</option>
-                      </select>
-                      <ChevronDown className="absolute right-2 top-[28px] text-gray-400 pointer-events-none" size={14} />
-                    </div>
+                    <label className="text-xs font-bold text-gray-500 uppercase">Quantity</label>
+                    <input 
+                      required 
+                      type="number" 
+                      min="0" 
+                      className={`w-full p-2 border rounded-lg outline-none ${getTextColor(act.totalQuantity)}`} 
+                      value={act.totalQuantity === 0 ? '' : act.totalQuantity} 
+                      placeholder="0"
+                      onChange={e => {
+                        const val = e.target.value === '' ? 0 : e.target.value;
+                        handleActivityChange(idx, 'totalQuantity', val);
+                      }} 
+                    />
+                  </div>
+
+                  
+                  <div className="space-y-1 relative">
+                  <label className="text-xs font-bold text-gray-500 uppercase">Unit</label>
+                  <select 
+                    required 
+                    className={`w-full p-2 border rounded-lg outline-none appearance-none bg-white ${getTextColor(act.unit)}`} 
+                    value={act.unit} 
+                    onChange={e => handleActivityChange(idx, 'unit', e.target.value)}
+                  >
+                    {/* Placeholder: remains grey via getTextColor when value is '' */}
+                    <option value="" disabled={!!act.unit} className="text-gray-400">Select Unit</option>
+                    
+                    {/* Real options: explicitly set to text-black */}
+                    <option value="Nos" disabled={act.unit !== '' && act.unit !== 'Nos'} className="text-black">Nos</option>
+                    <option value="Litres" disabled={act.unit !== '' && act.unit !== 'Litres'} className="text-black">Litres</option>
+                    <option value="Acres" disabled={act.unit !== '' && act.unit !== 'Acres'} className="text-black">Acres</option>
+                    {/* <option value="Meters" disabled={act.unit !== '' && act.unit !== 'Meters'} className="text-black">Meters</option> */}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-[28px] text-gray-400 pointer-events-none" size={14} />
+                </div>
+
+
                   </div>
                 )}
 
-                <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase">Remarks (Specifications)</label>
-                    <input placeholder="Eg: 1 5000, 2 500.   'SLM Training'" className={`w-full p-2 border rounded-lg outline-none italic ${getTextColor(act.remarks)}`} 
-                      value={act.remarks} onChange={e => handleActivityChange(idx, 'remarks', e.target.value)} />
-                </div>
+                {!act.isTraining && act.totalQuantity > 0 && (
+                  <div className="space-y-3 p-3 bg-white rounded-xl border border-gray-100">
+                      <label className="text-xs font-bold text-gray-500 uppercase">Specifications</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {act.specifications.map((spec, sIdx) => (
+                          <input 
+                            key={sIdx}
+                            required
+                            placeholder={`Enter amount`}
+                            className="p-2 border rounded-lg text-sm outline-none focus:border-blue-400 text-black" // Added text-black
+                            value={spec}
+                            onChange={(e) => handleActivityChange(idx, 'specifications', { sIdx, val: e.target.value })}
+                          />
+                        ))}
+                      </div>
+                  </div>
+                )}
                 <br />
               </div>
             ))}
@@ -326,7 +480,7 @@ return (
                           ? `Date: ${act.trainingDetails.date} | Type: ${act.trainingDetails.type}` 
                           : `Quantity: ${act.totalQuantity} ${act.unit}`}
                       </p>
-                      {act.remarks && <p className="text-xs italic text-gray-400 mt-1">Remarks: {act.remarks}</p>}
+                      {!act.isTraining && act.remarks && <p className="text-xs italic text-gray-400 mt-1">Amount: {act.remarks}</p>}
                     </div>
                   ))}
                 </div>

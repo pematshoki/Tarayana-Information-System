@@ -1,13 +1,11 @@
-import { useState } from "react";
+import {  useEffect,useState } from "react";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import bgImage from "../../assets/hero.png";
 import logo from "../../assets/logo.png";
-import hero from "../../assets/hero.png";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
 
 const Login = () => {
     const navigate = useNavigate();
-    const { login } = useAuth();
     const [showSuccess, setShowSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -15,10 +13,28 @@ const Login = () => {
   const [password, setPassword] = useState("");
 
   const [errors, setErrors] = useState({});
+const [bgImage, setBgImage] = useState("");
+useEffect(() => {
+  const fetchBanner = async () => {
+  try {
+    const res = await fetch("http://localhost:5000/api/banner");
+    const data = await res.json();
 
-  // Use the provided background image
-  const bgImage = hero;
+    console.log("BANNER API RESPONSE:", data);
 
+    if (data && data.imageUrl) {
+      setBgImage(data.imageUrl);
+    } else {
+      console.warn("No banner found in DB");
+      setBgImage(""); // fallback
+    }
+  } catch (err) {
+    console.error("Fetch error:", err);
+  }
+};
+
+  fetchBanner();
+}, []);
   // ✅ Custom validation
   const validate = () => {
     let newErrors = {};
@@ -33,72 +49,108 @@ const Login = () => {
     // Password validation
     if (!password) {
       newErrors.password = "Password is required";
-    } else if (password !== "123456") {
-      // 🔹 you can replace this with backend later
-      newErrors.password = "Password is incorrect";
-    }
+    } 
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+//   const handleSubmit = (e) => {
+//     e.preventDefault();
 
-   if (validate()) {
-  setShowSuccess(true);
+//    if (validate()) {
+//   setShowSuccess(true);
 
-  // Determine role for demo
-  let role = 'Field Officer';
-  if (email.includes('admin')) role = 'Admin';
-  
-  // Log in so the dashboard is accessible
-  login({ email, role });
+//   // simulate redirect after 2 seconds
+//   setTimeout(() => {
+//     setShowSuccess(false);
+//     navigate("/dashboard");
+//     // 👉 later you can use navigate("/dashboard")
+//   }, 2000);
+// }
+//   };
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-  // simulate redirect after 2 seconds
-  setTimeout(() => {
-    setShowSuccess(false);
-    navigate("/dashboard");
-    // 👉 later you can use navigate("/dashboard")
-  }, 2000);
-}
-  };
+  if (!validate()) return;
 
+  try {
+    const response = await fetch("http://localhost:5000/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      setErrors({ general: data.message || "Login failed" });
+      return;
+    }
+
+    // 1. Store auth data
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("user", JSON.stringify(data.user));
+
+    // 2. Show success popup
+    setShowSuccess(true);
+
+    // 3. Conditional Navigation based on Role
+    setTimeout(() => {
+      setShowSuccess(false);
+      
+      const userRole = data.user?.role; // Assuming your backend returns { user: { role: 'PO', ... } }
+
+      if (userRole === "ProgrammeOfficer") {
+        navigate("/po/dashboard"); // Route for Programme Officer
+      } else if ( userRole === "FieldOfficer") {
+        navigate("/fo/dashboard");
+      } else if ( userRole === "C&DOfficer") {
+        navigate("/cd/dashboard");
+      }else {
+        navigate("/dashboard");    // Default fallback
+      }
+    }, 1500);
+
+  } catch (error) {
+    console.error(error);
+    setErrors({ general: "Server error. Try again." });
+  }
+};
   
 
   return (
-    <div
-      className="relative w-full min-h-screen flex items-center justify-center px-4"
-      style={{
-        backgroundImage: `url(${bgImage})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
-    >
+   <div
+  className="relative w-full min-h-screen flex items-center justify-center px-4"
+  style={{
+    backgroundImage: bgImage ? `url(${bgImage})` : "none",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+  }}
+>
       {/* Overlay */}
       <div className="absolute inset-0 bg-white/50 backdrop-blur-sm"></div>
 
       {/* Card */}
-      <div className="relative z-10 w-full md:max-w-2xl lg:max-w-3xl bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl px-4 py-8 sm:px-6 sm:py-10 text-center">
+      <div className="relative z-10 w-full md:max-w-2xl lg:max-w-3xl bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl px-4 py-8 sm:px-6 sm:py-10">
         
         {/* Logo */}
-        <div className="flex justify-center mb-4">
-          <img src={logo} alt="logo" className="w-24 h-24" />
+        <div className="flex justify-center mb-5">
+          <img src={logo} alt="logo" className="w-28 h-28" />
         </div>
 
         {/* Title */}
-        <h2 className="text-xl font-semibold text-center text-gray-700">
+        <h2 className="text-xl sm:text-2xl font-semibold text-center text-gray-700">
           Tarayana Information System
         </h2>
-        <p className="text-center text-gray-500 text-sm mt-1 font-semibold">
-          Login to your account
-        </p>
-        <p className="text-center text-gray-500 text-sm mt-5 mb-6">
-          Enter your credentials to access the system.
+        <p className="text-center text-gray-500 text-sm mt-1 mb-6 font-semibold">
+          Login to your account to continue
         </p>
 
-        <form onSubmit={handleSubmit} noValidate className="max-w-xl mx-auto w-full">
-
+       <form onSubmit={handleSubmit} noValidate className="max-w-xl mx-auto w-full">
+{errors.general && (
+  <p className="text-red-500 text-center mb-4">{errors.general}</p>
+)}
           {/* Email */}
           <div className="mb-4">
             <div className="relative">
@@ -108,13 +160,13 @@ const Login = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter Email Address"
-                className={`w-full pl-11 pr-4 py-3 border rounded-lg bg-white/70 focus:outline-none focus:ring-2 ${
-                  errors.email ? "border-red-500 focus:ring-red-400" : "focus:ring-blue-400"
-                }`}
+               className={`w-full pl-12 pr-4 py-4 text-base border rounded-xl bg-white/70 focus:outline-none focus:ring-2 ${
+  errors.email ? "border-red-500 focus:ring-red-400" : "focus:ring-blue-400"
+}`}
               />
             </div>
             {errors.email && (
-              <p className="text-red-500 text-sm mt-1 text-left">{errors.email}</p>
+              <p className="text-red-500 text-sm mt-1">{errors.email}</p>
             )}
           </div>
 
@@ -132,29 +184,29 @@ const Login = () => {
                 }`}
               />
 
-              <button
+              {/* <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+              </button> */}
             </div>
             {errors.password && (
-              <p className="text-red-500 text-sm mt-1 text-left">{errors.password}</p>
+              <p className="text-red-500 text-sm mt-1">{errors.password}</p>
             )}
           </div>
 
-          {/* Remember Me */}
+          {/* Remember Me (BIGGER) */}
           <div className="flex items-center mb-6 text-sm text-gray-600">
             <input
               type="checkbox"
-              className="mr-2 w-4 h-4 accent-blue-500 cursor-pointer"
+              className="mr-2 w-5 h-5 accent-blue-500 cursor-pointer"
             />
             Remember me
           </div>
 
-          {/* Button */}
+          {/* Button (BOLD TEXT) */}
           <button className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg shadow-lg font-semibold transition">
             Login
           </button>
@@ -163,9 +215,8 @@ const Login = () => {
 
         {/* Forgot */}
         <p 
-          onClick={() => navigate("/auth/forgot-password")}
-          className="text-center text-sm text-gray-500 mt-6 cursor-pointer hover:text-blue-500 transition-colors"
-        >
+        onClick={() => navigate("/resetpassword")}
+        className="text-center text-sm text-gray-500 mt-5 cursor-pointer ">
           Forgot your Password?
         </p>
       </div>

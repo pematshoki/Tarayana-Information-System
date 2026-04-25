@@ -73,8 +73,8 @@ const AppRoutes = () => {
   return (
     <Routes>
       {/* Root Redirect */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="/login" element={<Navigate to="/auth/login" replace />} />
+      {/* <Route path="/" element={<Navigate to="/dashboard" replace />} /> */}
+      <Route path="/" element={<Navigate to="/auth/login" replace />} />
 
       {/* Field Officer Routes (Path-less layout) */}
       <Route element={
@@ -162,9 +162,9 @@ const AppRoutes = () => {
         <Route path="validation-queue" element={<ValidationQueue />} />
         <Route path="validation-queue/:programme" element={<ValidationProjects />} />
         <Route path="validation-queue/project/:id" element={<ValidationDetails />} />
-        <Route path="archives/officer/:officerName" element={<OfficerDetails />} />
+        <Route path="archives/officer/:officerId" element={<OfficerDetails />} />
         <Route path="archives/programme/:programmeName" element={<MrCdProgramme />} />
-        <Route path="archives/programme/:programmeName/project/:projectName" element={<MrCdProjectDetails />} />
+        <Route path="archives/programme/:programmeName/project/:id" element={<MrCdProjectDetails />} />
       </Route>
 
       {/* MR Officer Routes */}

@@ -17,20 +17,37 @@ const UpdateBeneficiaryModal = ({ isOpen, onClose, onUpdate, beneficiary }) => {
     houseNo: '',
     thramNo: '',
     indirectBeneficiaries: { male: 0, female: 0 },
-    keyActivities: []
+     keyActivities: [{ 
+      activityName: '', 
+      totalQuantity: 1, 
+      unit: '', 
+      remarks: '',
+      isTraining: false,
+      trainingDetails: { date: '', type: '' },
+      specifications: [] // Added to track individual specs
+    }]
   });
 
-  useEffect(() => {
+useEffect(() => {
     const fetchProjects = async () => {
+      // 🔐 Get the real token
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
       try {
-        const res = await axios.get('http://localhost:5000/api/projects');
+        const res = await axios.get('http://localhost:5000/api/projects', {
+          headers: {
+            Authorization: `Bearer ${token}` // ✅ Add this
+          }
+        });
         setProjects(res.data.data || []);
-      } catch (err) {
-        console.error(err);
+      } catch (err) { 
+        console.error("Fetch projects error:", err); 
       }
     };
     fetchProjects();
   }, []);
+
 
   useEffect(() => {
     if (beneficiary) {
@@ -46,30 +63,70 @@ const UpdateBeneficiaryModal = ({ isOpen, onClose, onUpdate, beneficiary }) => {
         houseNo: beneficiary.houseNo || '',
         thramNo: beneficiary.thramNo || '',
         indirectBeneficiaries: beneficiary.indirectBeneficiaries || { male: 0, female: 0 },
-        keyActivities: beneficiary.keyActivities?.map(act => ({ 
-          ...act, 
-          isNew: false,
-          // Map specifications array back to remarks string for the input
-          remarks: act.specifications && act.specifications.length > 0 ? act.specifications[0] : '' 
-        })) || []
+        keyActivities: beneficiary.keyActivities?.map(act => {
+          // Sync specifications array with the specifications used in the UI
+          const qty = act.totalQuantity || 0;
+          const existingSpecs = act.specifications || [];
+          const specifications = Array.from({ length: qty }, (_, i) => existingSpecs[i] || "");
+          
+          return { 
+            ...act, 
+            isTraining: act.isTraining || false,
+            trainingDetails: {
+              // FIX: Format the date here
+              date: formatDate(act.trainingDetails?.date),
+              type: act.trainingDetails?.type || ''
+            },
+            isNew: false,
+            unit: act.unit || '',
+            specifications: specifications,
+            remarks: specifications.join(", ")
+          };
+        }) || []
       });
     }
   }, [beneficiary]);
 
+  const getTextColor = (value) => value ? "text-black" : "text-gray-400";
   const selectedProject = projects.find(p => p._id === formData.projectId);
-
   const availableDzongkhags = selectedProject?.dzongkhag
-    ? Array.isArray(selectedProject.dzongkhag)
-      ? selectedProject.dzongkhag
-      : [selectedProject.dzongkhag]
+    ? Array.isArray(selectedProject.dzongkhag) ? selectedProject.dzongkhag : [selectedProject.dzongkhag.toString()]
     : [];
+
+  const formatDate = (isoString) => {
+    if (!isoString) return "";
+    return isoString.split('T')[0]; // Takes "2026-04-25" from "2026-04-25T00:00:00.000Z"
+  };
 
 
   const handleActivityChange = (idx, field, value) => {
     const newActs = [...formData.keyActivities];
-    if (field.includes('.')) {
+
+    if (field === "totalQuantity") {
+      const qty = Math.max(0, parseInt(value) || 0);
+      newActs[idx].totalQuantity = qty;
+      const old = newActs[idx].specifications || [];
+      newActs[idx].specifications = Array.from({ length: qty }, (_, i) => old[i] || "");
+    } 
+    else if (field === "specifications") {
+      const { sIdx, val } = value;
+      const clean = val.replace(/[^0-9]/g, ""); // Numbers only
+      const specs = [...(newActs[idx].specifications || [])];
+      specs[sIdx] = clean;
+      newActs[idx].specifications = specs;
+      newActs[idx].remarks = specs.join(", ");
+    }
+    else if (field === "isTraining") {
+      newActs[idx].isTraining = value;
+      if (value) {
+        newActs[idx].totalQuantity = 1;
+        newActs[idx].unit = "";
+        newActs[idx].specifications = [];
+      }
+    }
+    else if (field.includes('.')) {
       const [parent, child] = field.split('.');
-      newActs[idx][parent][child] = value;
+      newActs[idx][parent] = { ...newActs[idx][parent], [child]: value };
     } else {
       newActs[idx][field] = value;
     }
@@ -80,35 +137,51 @@ const UpdateBeneficiaryModal = ({ isOpen, onClose, onUpdate, beneficiary }) => {
     setFormData({
       ...formData,
       keyActivities: [...formData.keyActivities, { 
-        activityName: '', totalQuantity: 1, unit: 'Nos', remarks: '',
+        activityName: '', totalQuantity: 1, unit: '', remarks: '',
         isTraining: false, isNew: true,
-        trainingDetails: { date: '', type: '' }
+        trainingDetails: { date: '', type: '' },
+        specifications: ['']
       }]
     });
   };
 
- // ================= SUBMIT =================
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    const token = localStorage.getItem("token");
 
     const payload = {
       ...formData,
-      keyActivities: formData.keyActivities.map(act => ({
-        ...act,
-        specifications: act.remarks
-          ? act.remarks.split(',').map(s => s.trim())
-          : []
-      }))
+      keyActivities: formData.keyActivities.map(act => {
+        if (act.isTraining) {
+          return {
+            activityName: act.activityName,
+            isTraining: true,
+            trainingDetails: act.trainingDetails,
+            totalQuantity: 1,
+            specifications: []
+          };
+        }
+        return {
+          activityName: act.activityName,
+          isTraining: false,
+          totalQuantity: act.totalQuantity,
+          unit: act.unit,
+          specifications: act.specifications
+        };
+      })
     };
-
-    console.log("📤 UPDATE PAYLOAD:", payload);
 
     try {
       await axios.put(
-        `http://localhost:5000/api/beneficiaries/${beneficiary._id}`,
-        payload
+        `http://localhost:5000/api/beneficiaries/${beneficiary._id}`, 
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${token}` // ✅ Add this
+          }
+        }
       );
-
       onUpdate();
       onClose();
     } catch (err) {
@@ -116,6 +189,7 @@ const UpdateBeneficiaryModal = ({ isOpen, onClose, onUpdate, beneficiary }) => {
       alert(err.response?.data?.message || "Update failed");
     }
   };
+
 
 
   return (
@@ -128,7 +202,6 @@ const UpdateBeneficiaryModal = ({ isOpen, onClose, onUpdate, beneficiary }) => {
           <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }}
             className="relative bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
           >
-            {/* Header with Project Name */}
             <div className="p-8 pb-0 flex items-center justify-between sticky top-0 bg-white z-10">
               <div className="space-y-1">
                 <h3 className="text-2xl font-bold text-gray-900">Update Beneficiary</h3>
@@ -143,15 +216,13 @@ const UpdateBeneficiaryModal = ({ isOpen, onClose, onUpdate, beneficiary }) => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-black uppercase">Reporting Year</label>
-                  <input required type="number" className="w-full p-3 border rounded-xl outline-none font-normal text-black" 
+                  <input required type="number" className={`w-full p-3 border rounded-xl outline-none font-normal ${getTextColor(formData.year)}`} 
                     value={formData.year} onChange={e => setFormData({...formData, year: e.target.value})} />
                 </div>
 
-
-
                 <div className="space-y-1 relative">
                   <label className="text-xs font-bold text-black uppercase">Dzongkhag</label>
-                  <select required className="w-full p-3 border rounded-xl outline-none appearance-none capitalize font-normal text-black" 
+                  <select required className={`w-full p-3 border rounded-xl outline-none appearance-none capitalize font-normal ${getTextColor(formData.dzongkhag)}`} 
                     value={formData.dzongkhag} onChange={e => setFormData({...formData, dzongkhag: e.target.value})}>
                     <option value="">Select Dzongkhag</option>
                     {availableDzongkhags.map((d, i) => (<option key={i} value={d.toLowerCase()}>{d}</option>))}
@@ -159,10 +230,9 @@ const UpdateBeneficiaryModal = ({ isOpen, onClose, onUpdate, beneficiary }) => {
                   <ChevronDown className="absolute right-3 top-[34px] text-gray-400 pointer-events-none" size={18} />
                 </div>
 
-
                 <div className="space-y-1 relative">
                   <label className="text-xs font-bold text-black uppercase">Gender</label>
-                  <select required className="w-full p-3 border rounded-xl outline-none appearance-none font-normal text-black" 
+                  <select required className={`w-full p-3 border rounded-xl outline-none appearance-none font-normal ${getTextColor(formData.gender)}`} 
                     value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})}>
                     <option value="">Select Gender</option>
                     <option value="M">Male</option>
@@ -175,38 +245,42 @@ const UpdateBeneficiaryModal = ({ isOpen, onClose, onUpdate, beneficiary }) => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-black uppercase">Full Name</label>
-                  <input required className="w-full p-3 border rounded-xl outline-none font-normal text-black" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                  <input required className={`w-full p-3 border rounded-xl outline-none font-normal ${getTextColor(formData.name)}`} value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-black uppercase">CID</label>
-                  <input required maxLength={11} className="w-full p-3 border rounded-xl outline-none font-normal text-black" value={formData.cid} onChange={e => setFormData({...formData, cid: e.target.value})} />
+                  <input required maxLength={11} className={`w-full p-3 border rounded-xl outline-none font-normal ${getTextColor(formData.cid)}`} value={formData.cid} onChange={e => setFormData({...formData, cid: e.target.value.replace(/[^0-9]/g, '')})} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-black uppercase">Gewog</label>
-                  <input required className="w-full p-3 border rounded-xl outline-none font-normal text-black" value={formData.gewog} onChange={e => setFormData({...formData, gewog: e.target.value})} />
+                  <input required className={`w-full p-3 border rounded-xl outline-none font-normal ${getTextColor(formData.gewog)}`} value={formData.gewog} onChange={e => setFormData({...formData, gewog: e.target.value})} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-black uppercase">Village</label>
-                  <input required className="w-full p-3 border rounded-xl outline-none font-normal text-black" value={formData.village} onChange={e => setFormData({...formData, village: e.target.value})} />
+                  <input required className={`w-full p-3 border rounded-xl outline-none font-normal ${getTextColor(formData.village)}`} value={formData.village} onChange={e => setFormData({...formData, village: e.target.value})} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-black uppercase">House No</label>
-                  <input required className="w-full p-3 border rounded-xl outline-none font-normal text-black" value={formData.houseNo} onChange={e => setFormData({...formData, houseNo: e.target.value})} />
+                  <input required className={`w-full p-3 border rounded-xl outline-none font-normal ${getTextColor(formData.houseNo)}`} value={formData.houseNo} onChange={e => setFormData({...formData, houseNo: e.target.value})} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-black uppercase">Thram No</label>
-                  <input required className="w-full p-3 border rounded-xl outline-none font-normal text-black" value={formData.thramNo} onChange={e => setFormData({...formData, thramNo: e.target.value})} />
+                  <input required className={`w-full p-3 border rounded-xl outline-none font-normal ${getTextColor(formData.thramNo)}`} value={formData.thramNo} onChange={e => setFormData({...formData, thramNo: e.target.value.replace(/[^0-9]/g, '')})} />
                 </div>
               </div>
 
               <div className="p-4 bg-gray-50 rounded-2xl grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-black uppercase">Indirect Male</label>
-                  <input type="number" className="w-full p-2 border rounded-lg font-normal text-black" value={formData.indirectBeneficiaries.male} onChange={e => setFormData({...formData, indirectBeneficiaries: {...formData.indirectBeneficiaries, male: e.target.value}})} />
+                  <input type="number" min="0" placeholder="0" className={`w-full p-2 border rounded-lg font-normal ${getTextColor(formData.indirectBeneficiaries.male)}`} 
+                    value={formData.indirectBeneficiaries.male === 0 ? '' : formData.indirectBeneficiaries.male} 
+                    onChange={e => setFormData({...formData, indirectBeneficiaries: {...formData.indirectBeneficiaries, male: Math.max(0, parseInt(e.target.value) || 0)}})} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-black uppercase">Indirect Female</label>
-                  <input type="number" className="w-full p-2 border rounded-lg font-normal text-black" value={formData.indirectBeneficiaries.female} onChange={e => setFormData({...formData, indirectBeneficiaries: {...formData.indirectBeneficiaries, female: e.target.value}})} />
+                  <input type="number" min="0" placeholder="0" className={`w-full p-2 border rounded-lg font-normal ${getTextColor(formData.indirectBeneficiaries.female)}`} 
+                    value={formData.indirectBeneficiaries.female === 0 ? '' : formData.indirectBeneficiaries.female} 
+                    onChange={e => setFormData({...formData, indirectBeneficiaries: {...formData.indirectBeneficiaries, female: Math.max(0, parseInt(e.target.value) || 0)}})} />
                 </div>
               </div>
 
@@ -221,51 +295,72 @@ const UpdateBeneficiaryModal = ({ isOpen, onClose, onUpdate, beneficiary }) => {
                   <div key={idx} className="p-4 border border-dashed border-gray-200 rounded-2xl relative bg-gray-50/30 space-y-3">
                     <button type="button" onClick={() => setFormData({...formData, keyActivities: formData.keyActivities.filter((_, i) => i !== idx)})} className="absolute top-4 right-4 text-red-400"><Trash2 size={16}/></button>
                     
-                    {act.isNew && (
-                      <div className="flex gap-4 mb-2">
-                        <label className="flex items-center gap-2 text-xs font-bold uppercase text-black">
-                          <input type="radio" checked={!act.isTraining} onChange={() => handleActivityChange(idx, 'isTraining', false)} className="accent-blue-500" /> Activity
-                        </label>
-                        <label className="flex items-center gap-2 text-xs font-bold uppercase text-black">
-                          <input type="radio" checked={act.isTraining} onChange={() => handleActivityChange(idx, 'isTraining', true)} className="accent-blue-500" /> Training
-                        </label>
-                      </div>
-                    )}
+                    <div className="flex gap-4 mb-2">
+                      <label className="flex items-center gap-2 text-xs font-bold uppercase text-black cursor-pointer">
+                        <input type="radio" checked={!act.isTraining} onChange={() => handleActivityChange(idx, 'isTraining', false)} className="accent-blue-500" /> Activity
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-bold uppercase text-black cursor-pointer">
+                        <input type="radio" checked={act.isTraining} onChange={() => handleActivityChange(idx, 'isTraining', true)} className="accent-blue-500" /> Training
+                      </label>
+                    </div>
 
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-black uppercase">{act.isTraining ? 'Training Name' : 'Activity Name'}</label>
-                      <input placeholder="Enter intervention name" className="w-full p-2 border-b bg-transparent outline-none font-normal text-black focus:border-blue-500" value={act.activityName} onChange={e => handleActivityChange(idx, 'activityName', e.target.value)} />
+                      <input required className={`w-full p-2 border-b bg-transparent outline-none font-normal focus:border-blue-500 ${getTextColor(act.activityName)}`} value={act.activityName} onChange={e => handleActivityChange(idx, 'activityName', e.target.value)} />
                     </div>
 
                     {act.isTraining ? (
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
                           <label className="text-[10px] font-bold text-black uppercase">Date</label>
-                          <input type="date" className="w-full p-2 border rounded-lg font-normal text-black" value={act.trainingDetails.date} onChange={e => handleActivityChange(idx, 'trainingDetails.date', e.target.value)} />
+                          <input required type="date" className={`w-full p-2 border rounded-lg font-normal ${getTextColor(act.trainingDetails.date)}`} value={act.trainingDetails.date} onChange={e => handleActivityChange(idx, 'trainingDetails.date', e.target.value)} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-bold text-black uppercase">Type</label>
-                          <input className="w-full p-2 border rounded-lg font-normal text-black" value={act.trainingDetails.type} onChange={e => handleActivityChange(idx, 'trainingDetails.type', e.target.value)} />
+                          <input required className={`w-full p-2 border rounded-lg font-normal ${getTextColor(act.trainingDetails.type)}`} value={act.trainingDetails.type} onChange={e => handleActivityChange(idx, 'trainingDetails.type', e.target.value)} />
                         </div>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-black uppercase">Quantity</label>
-                          <input type="number" className="w-full p-2 border rounded-lg font-normal text-black" value={act.totalQuantity} onChange={e => handleActivityChange(idx, 'totalQuantity', e.target.value)} />
+                      <>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-black uppercase">Quantity</label>
+                            <input required type="number" min="0" className={`w-full p-2 border rounded-lg font-normal ${getTextColor(act.totalQuantity)}`} 
+                              value={act.totalQuantity === 0 ? '' : act.totalQuantity} 
+                              onChange={e => handleActivityChange(idx, 'totalQuantity', e.target.value)} />
+                          </div>
+                          <div className="space-y-1 relative">
+                            <label className="text-[10px] font-bold text-black uppercase">Unit</label>
+                            <select required className={`w-full p-2 border rounded-lg font-normal appearance-none bg-white ${getTextColor(act.unit)}`} 
+                              value={act.unit} onChange={e => handleActivityChange(idx, 'unit', e.target.value)}>
+                              <option value="" disabled={!!act.unit}>Select Unit</option>
+                              <option value="Nos" disabled={act.unit !== '' && act.unit !== 'Nos'} className="text-black">Nos</option>
+                              <option value="Litres" disabled={act.unit !== '' && act.unit !== 'Litres'} className="text-black">Litres</option>
+                              <option value="Kg" disabled={act.unit !== '' && act.unit !== 'Kg'} className="text-black">Kg</option>
+                              <option value="Acres" disabled={act.unit !== '' && act.unit !== 'Acres'} className="text-black">Acres</option>
+                            </select>
+                            <ChevronDown className="absolute right-2 top-[24px] text-gray-400 pointer-events-none" size={14} />
+                          </div>
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-black uppercase">Unit</label>
-                          <select className="w-full p-2 border rounded-lg font-normal text-black" value={act.unit} onChange={e => handleActivityChange(idx, 'unit', e.target.value)}>
-                            <option value="Nos">Nos</option><option value="Litres">Litres</option><option value="Kg">Kg</option><option value="Acres">Acres</option>
-                          </select>
-                        </div>
-                      </div>
+                        {!act.isTraining && act.totalQuantity > 0 && (
+                          <div className="space-y-2">
+                             <label className="text-[10px] font-bold text-black uppercase">Specifications (Numbers only)</label>
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                               {act.specifications?.map((spec, sIdx) => (
+                                 <input 
+                                   key={sIdx} 
+                                   required 
+                                   placeholder="Enter amount" 
+                                   className="p-2 border rounded-lg text-sm text-black outline-none focus:border-blue-400"
+                                   value={spec} 
+                                   onChange={e => handleActivityChange(idx, 'specifications', { sIdx, val: e.target.value })} 
+                                 />
+                               ))}
+                             </div>
+                          </div>
+                        )}
+                      </>
                     )}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-black uppercase">Remarks</label>
-                      <input placeholder="Enter specifications..." className="w-full p-2 border rounded-lg italic text-sm font-normal text-black" value={act.remarks} onChange={e => handleActivityChange(idx, 'remarks', e.target.value)} />
-                    </div>
                   </div>
                 ))}
               </div>
@@ -283,5 +378,3 @@ const UpdateBeneficiaryModal = ({ isOpen, onClose, onUpdate, beneficiary }) => {
 };
 
 export default UpdateBeneficiaryModal;
-
-// this is the real

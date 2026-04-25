@@ -7,7 +7,18 @@ import SuccessModal from '../../components/modals/SuccessModal';
 
 const AddNewProject = () => {
   const navigate = useNavigate();
-  const dummyToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZGFhZjQ0MzBjZWI2NWFmZGRiYTJjMyIsInJvbGUiOiJQcm9ncmFtbWVPZmZpY2VyIiwiaWF0IjoxNzc2NDQ0NDI5LCJleHAiOjE3NzY1MzA4Mjl9.LIaDLCZMsro8bc_GDDsWdASKp56yhFi5qcXOOL4u-AY";
+
+  // 🔐 1. REAL SESSION RETRIEVAL
+  const token = localStorage.getItem("token");
+  const storedUser = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : null;
+
+  // 🛡️ 2. AUTHENTICATION GUARD
+  useEffect(() => {
+    if (!token || !storedUser) {
+      console.warn("Unauthorized access. Redirecting to login...");
+      navigate("/login", { replace: true });
+    }
+  }, [token, storedUser, navigate]);
 
   // Data States
   const [donors, setDonors] = useState([]);
@@ -19,7 +30,7 @@ const AddNewProject = () => {
     "Samtse", "Sarpang", "Thimphu", "Trashigang", "Trashi Yangtse", 
     "Trongsa", "Tsirang", "Wangdue Phodrang", "Zhemgang"]);
 
-  // Modals
+  // Modals & Form State
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [showConfirmProject, setShowConfirmProject] = useState(false);
@@ -27,7 +38,6 @@ const AddNewProject = () => {
   const [newName, setNewName] = useState('');
   const [addingType, setAddingType] = useState('');
 
-  // Form State
   const [tempSelections, setTempSelections] = useState({ dzongkhag: '', donor: '', partner: '', fieldOfficer: '', programme: '' });
   const [formData, setFormData] = useState({
     projectName: '',
@@ -38,24 +48,40 @@ const AddNewProject = () => {
     partner: [],
     programme: [],
     fieldOfficer: [],
-    description: ''
+    description: '',
+    // Optional: If you want to track who created the project
+    createdBy: storedUser?.id || storedUser?._id 
   });
 
+  // 📡 3. FETCH DATA WITH AUTH HEADERS
   const fetchData = async () => {
+    if (!token) return;
     try {
+      const config = {
+        headers: { Authorization: `Bearer ${token}` }
+      };
+
       const [donPartRes, progRes, userRes] = await Promise.all([
-        axios.get('http://localhost:5000/api/donor-partner/summary'),
-        axios.get('http://localhost:5000/api/programmes/'),
-        axios.get('http://localhost:5000/api/auth/users')
+        axios.get('http://localhost:5000/api/donor-partner/summary', config),
+        axios.get('http://localhost:5000/api/programmes/', config),
+        axios.get('http://localhost:5000/api/auth/users', config)
       ]);
+
       setDonors(donPartRes.data.donors || []);
       setPartners(donPartRes.data.partners || []);
       setProgrammes(progRes.data.programmes || []);
       setOfficers((userRes.data.users || []).filter(u => u.roleId?.roleName === 'FieldOfficer'));
-    } catch (err) { console.error("Fetch Error:", err); }
+    } catch (err) { 
+      console.error("Fetch Error:", err);
+      if (err.response?.status === 401) navigate("/login");
+    }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { 
+    if (token) fetchData(); 
+  }, [token]);
+
+
 
   const formatEmail = (email) => email ? email.split('@')[0] : 'N/A';
 
@@ -68,15 +94,6 @@ const AddNewProject = () => {
     return `${Math.floor(diffDays / 30)} months, ${diffDays % 30} days`;
   };
 
-  const handleSelectChange = (field, value) => {
-    if (value === "ADD_NEW_TRIGGER") {
-      setAddingType(field.charAt(0).toUpperCase() + field.slice(1));
-      setShowAddModal(true);
-      setTempSelections({ ...tempSelections, [field]: '' });
-    } else {
-      setTempSelections({ ...tempSelections, [field]: value });
-    }
-  };
 
   const confirmAddition = (field) => {
     const value = tempSelections[field];
@@ -90,15 +107,45 @@ const AddNewProject = () => {
     setFormData({ ...formData, [field]: formData[field].filter(i => i !== value) });
   };
 
-  const handleAddNewSubmit = async () => {
+const handleAddNewSubmit = async () => {
     try {
-      await axios.post('http://localhost:5000/api/donor-partner/register', { name: newName, roleName: addingType });
+      await axios.post('http://localhost:5000/api/donor-partner/register', 
+        { name: newName, roleName: addingType },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       setNewName(''); 
       setShowAddModal(false); 
       setSuccessMsg(`${addingType} Registered Successfully`);
       setIsSuccessModalOpen(true); 
       fetchData(); 
     } catch (err) { alert("Error adding " + addingType); }
+  };
+
+  const finalSubmit = async () => {
+    try {
+      // 🔐 Use REAL token here
+      await axios.post('http://localhost:5000/api/projects', formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setShowConfirmProject(false);
+      setSuccessMsg("Project Added Successfully");
+      setIsSuccessModalOpen(true);
+      setTimeout(() => { navigate('/po/programmes'); }, 2000);
+    } catch (error) { 
+      console.error("Submission failed:", error);
+      alert(error.response?.data?.message || "Submission failed."); 
+    }
+  };
+
+  // Helper functions (duration, select changes, etc.) remain the same...
+  const handleSelectChange = (field, value) => {
+    if (value === "ADD_NEW_TRIGGER") {
+      setAddingType(field.charAt(0).toUpperCase() + field.slice(1));
+      setShowAddModal(true);
+      setTempSelections({ ...tempSelections, [field]: '' });
+    } else {
+      setTempSelections({ ...tempSelections, [field]: value });
+    }
   };
 
   const prepareForConfirmation = (e) => {
@@ -119,17 +166,9 @@ const AddNewProject = () => {
     setShowConfirmProject(true);
   };
 
-  const finalSubmit = async () => {
-    try {
-      await axios.post('http://localhost:5000/api/projects', formData, {
-        headers: { Authorization: `Bearer ${dummyToken}` }
-      });
-      setShowConfirmProject(false);
-      setSuccessMsg("Project Added Successfully");
-      setIsSuccessModalOpen(true);
-      setTimeout(() => { navigate('/po/programmes'); }, 2000);
-    } catch (error) { alert("Submission failed."); }
-  };
+  // 🛡️ Prevent render if no session
+  if (!token || !storedUser) return null;
+
 
   return (
     // This wrapper ensures the content is centered in the available screen space
@@ -160,7 +199,7 @@ const AddNewProject = () => {
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <select className={`w-full px-4 py-3 border border-gray-200 rounded-xl outline-none appearance-none font-medium ${tempSelections.dzongkhag ? 'text-black' : 'text-gray-400'}`} 
-                      value={tempSelections.dzongkhag} onChange={(e) => handleSelectChange('dzongkhag', e.target.value)} required>
+                      value={tempSelections.dzongkhag} onChange={(e) => handleSelectChange('dzongkhag', e.target.value)}>
                       <option value="" className="text-gray-400">Select Dzongkhag</option>
                       {dzongkhagsList.map(dz => <option key={dz} value={dz} className="text-black">{dz}</option>)}
                     </select>
@@ -229,7 +268,7 @@ const AddNewProject = () => {
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <select className={`w-full px-4 py-3 border border-gray-200 rounded-xl outline-none appearance-none font-medium ${tempSelections.programme ? 'text-black' : 'text-gray-400'}`} 
-                      value={tempSelections.programme} onChange={(e) => handleSelectChange('programme', e.target.value)} required>
+                      value={tempSelections.programme} onChange={(e) => handleSelectChange('programme', e.target.value)}>
                       <option value="" className="text-gray-400">Select Programme</option>
                       {programmes.map(p => <option key={p._id} value={p._id} className="text-black">{p.programmeName}</option>)}
                     </select>
@@ -246,7 +285,7 @@ const AddNewProject = () => {
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <select className={`w-full px-4 py-3 border border-gray-200 rounded-xl outline-none appearance-none font-medium ${tempSelections.fieldOfficer ? 'text-black' : 'text-gray-400'}`} 
-                      value={tempSelections.fieldOfficer} onChange={(e) => handleSelectChange('fieldOfficer', e.target.value)} required>
+                      value={tempSelections.fieldOfficer} onChange={(e) => handleSelectChange('fieldOfficer', e.target.value)}>
                       <option value="" className="text-gray-400">Select Officer</option>
                       {officers.map(o => <option key={o._id} value={o._id} className="text-black">{o.email}</option>)}
                     </select>

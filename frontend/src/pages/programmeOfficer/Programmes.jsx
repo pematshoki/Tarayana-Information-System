@@ -8,20 +8,25 @@ import UpdateProjectModal from '../../components/modals/UpdateProjectModal';
 import DeleteConfirmModal from '../../components/modals/DeleteConfirmModal';
 import SuccessModal from '../../components/modals/SuccessModal';
 
+
 const Programmes = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  
-  // 🔴 DUMMY FALLBACKS
-  const DUMMY_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZGFhZjQ0MzBjZWI2NWFmZGRiYTJjMyIsInJvbGUiOiJQcm9ncmFtbWVPZmZpY2VyIiwiaWF0IjoxNzc2NDQ0NDI5LCJleHAiOjE3NzY1MzA4Mjl9.LIaDLCZMsro8bc_GDDsWdASKp56yhFi5qcXOOL4u-AY";
-  const DUMMY_PO_ID = "69daaf4430ceb65afddba2c3";
 
-  // 🔐 GET FROM LOCAL STORAGE
-  const storedToken = localStorage.getItem("token");
-  const storedUser = JSON.parse(localStorage.getItem("user"));
+  // 🔐 REAL SESSION RETRIEVAL
+  const token = localStorage.getItem("token");
+  const storedUser = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : null;
 
-  const TOKEN = storedToken || DUMMY_TOKEN;
-  const PO_ID = storedUser?.id || DUMMY_PO_ID;
+  // Extract ID from the real user object
+  const PO_ID = storedUser?.id || storedUser?._id;
+
+  // 🛡️ AUTHENTICATION CHECK
+  useEffect(() => {
+    if (!token || !storedUser) {
+      console.warn("No active session found. Redirecting to login...");
+      navigate("/login", { replace: true });
+    }
+  }, [token, storedUser, navigate]);
 
   // Core Data States
   const [projects, setProjects] = useState([]);
@@ -40,14 +45,16 @@ const Programmes = () => {
   // --- API CALLS ---
 
   const fetchProjects = async () => {
+    // Only fetch if we have both values
+    if (!PO_ID || !token) return;
+    
     try {
       setLoading(true);
-
       const response = await axios.get(
         `http://localhost:5000/api/projects/programme-officer/${PO_ID}`,
         {
           headers: {
-            Authorization: `Bearer ${TOKEN}`,
+            Authorization: `Bearer ${token}`, // ✅ Fixed: Using real token
           },
         }
       );
@@ -56,63 +63,51 @@ const Programmes = () => {
       setProjects(response.data.data || []);
     } catch (error) {
       console.error("❌ Error fetching PO projects:", error);
+      if (error.response?.status === 401) {
+        localStorage.clear();
+        navigate("/login");
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  // Initial Fetch
   useEffect(() => {
     fetchProjects();
-  }, []);
+  }, [PO_ID, token]); // Re-run if credentials change
 
 
+  const handleUpdate = async (updatedData) => {
+    try {
+      console.log("📤 Sending update data:", updatedData);
 
+      const response = await axios.put(
+        `http://localhost:5000/api/projects/update/${selectedProject._id}`,
+        updatedData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // ✅ Fixed: Using real token
+          },
+        }
+      );
 
+      console.log("✅ Update Response:", response.data);
 
-const handleUpdate = async (updatedData) => {
-  try {
-    console.log("📤 Sending update data:", updatedData);
+      // UI updates
+      setIsUpdateModalOpen(false);
+      setSuccessMessage('Project Updated Successfully');
+      setIsSuccessModalOpen(true);
 
-    const response = await axios.put(
-      `http://localhost:5000/api/projects/update/${selectedProject._id}`,
-      updatedData,
-      {
-        headers: {
-          Authorization: `Bearer ${TOKEN}`,
-        },
-      }
-    );
+      await fetchProjects(); // refresh list
 
-    // ✅ Log full response
-    console.log("✅ Update Response:", response);
-    console.log("✅ Updated Project Data:", response.data);
+      setTimeout(() => setIsSuccessModalOpen(false), 2000);
 
-    // UI updates
-    setIsUpdateModalOpen(false);
-    setSuccessMessage('Project Updated Successfully');
-    setIsSuccessModalOpen(true);
-
-    await fetchProjects(); // refresh list
-
-    setTimeout(() => setIsSuccessModalOpen(false), 2000);
-
-  } catch (error) {
-    console.error("❌ Update failed FULL:", error);
-
-    if (error.response) {
-      console.error("❌ Status:", error.response.status);
-      console.error("❌ Data:", error.response.data);
+    } catch (error) {
+      console.error("❌ Update failed:", error);
+      alert(error.response?.data?.message || "Failed to update project");
     }
-
-    alert(error.response?.data?.message || "Failed to update project");
-  }
-};
-
-
-
-
-
-
+  };
 
   const handleDelete = async () => {
     try {
@@ -120,7 +115,7 @@ const handleUpdate = async (updatedData) => {
         `http://localhost:5000/api/projects/${selectedProject._id}`,
         {
           headers: {
-            Authorization: `Bearer ${TOKEN}`,
+            Authorization: `Bearer ${token}`, // ✅ Fixed: Using real token
           },
         }
       );
@@ -135,7 +130,7 @@ const handleUpdate = async (updatedData) => {
     }
   };
 
-  // --- LOGIC (UNCHANGED BELOW) ---
+  // --- LOGIC ---
 
   const handleEditClick = (e, project) => {
     e.stopPropagation();
@@ -159,25 +154,23 @@ const handleUpdate = async (updatedData) => {
     return (
       project.projectName?.toLowerCase().includes(search) ||
       project.dzongkhag?.some(d => d.toLowerCase().includes(search)) ||
-      // project.programme?.programmeName?.toLowerCase().includes(search)
       project.programme?.some(p => p.programmeName?.toLowerCase().includes(search))
     );
   });
 
-const programmesSummary = projects.reduce((acc, proj) => {
-  if (proj.programme?.length > 0) {
-    proj.programme.forEach(p => {
-      const name = p.programmeName;
-      if (!acc[name]) acc[name] = { name, count: 0 };
-      acc[name].count++;
-    });
-  } else {
-    if (!acc['Unassigned']) acc['Unassigned'] = { name: 'Unassigned', count: 0 };
-    acc['Unassigned'].count++;
-  }
-
-  return acc;
-}, {});
+  const programmesSummary = projects.reduce((acc, proj) => {
+    if (proj.programme?.length > 0) {
+      proj.programme.forEach(p => {
+        const name = p.programmeName;
+        if (!acc[name]) acc[name] = { name, count: 0 };
+        acc[name].count++;
+      });
+    } else {
+      if (!acc['Unassigned']) acc['Unassigned'] = { name: 'Unassigned', count: 0 };
+      acc['Unassigned'].count++;
+    }
+    return acc;
+  }, {});
 
   const dzongkhagsSummary = projects.reduce((acc, proj) => {
     proj.dzongkhag?.forEach(d => {
@@ -187,6 +180,8 @@ const programmesSummary = projects.reduce((acc, proj) => {
     return acc;
   }, {});
 
+  // Guard Clause for rendering
+  if (!token || !storedUser) return null;
 
 
 
@@ -286,7 +281,7 @@ const programmesSummary = projects.reduce((acc, proj) => {
                     <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Programme</th>
                     <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Field Officer</th>
                     <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">End Date</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">Action</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">Actions</th>
                   </tr> 
                 </thead>
                 <tbody className="divide-y divide-gray-50 text-[13px]">

@@ -1,112 +1,106 @@
-import React from 'react';
-import { ChevronDown } from 'lucide-react';
+import React, { useState } from 'react';
 import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  Cell
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell 
 } from 'recharts';
-import { motion, AnimatePresence } from 'motion/react';
-import { cn } from '../../lib/utils';
+import { ChevronUp, ChevronDown } from 'lucide-react';
 
 const ChartCard = ({ 
   title, 
   subtitle, 
-  data, 
-  filterLabel, 
-  onFilterClick, 
-  isDropdownOpen, 
-  setIsDropdownOpen,
-  filterOptions,
+  data = [], 
+  filterOptions = [], 
+  activeFilterId, 
   onOptionSelect,
-  activeFilterId,
-  yAxisTicks
+  yAxisLabel = "Count"
 }) => {
-  return (
-    <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-bold text-gray-900">{title}</h3>
-          <p className="text-xs text-gray-400">{subtitle}</p>
-        </div>
-        
-        {filterLabel && (
-          <div className="relative">
-            <button 
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex items-center justify-between gap-3 px-4 py-2 bg-white border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-all min-w-[140px]"
-            >
-              <span className="text-xs font-bold text-gray-600">{filterLabel}</span>
-              <ChevronDown className={cn("transition-transform duration-200 text-gray-400", isDropdownOpen && "rotate-180")} size={14} />
-            </button>
+  const [isOpen, setIsOpen] = useState(false);
+  
+  // Colors matching your image: Blue, Green, Yellow, Orange, etc.
+  const colors = ['#3498db', '#2ecc71', '#f1c40f', '#e67e22', '#2980b9', '#9b59b6'];
 
-            <AnimatePresence>
-              {isDropdownOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setIsDropdownOpen(false)} />
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    className="absolute right-0 mt-2 w-full bg-white border border-gray-100 rounded-xl shadow-xl z-20 py-1 overflow-hidden"
+  const currentFilterLabel = filterOptions?.find(opt => opt.id === activeFilterId)?.label || 'Select Filter';
+
+  return (
+    <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm relative transition-all">
+      <div className="flex justify-between items-start mb-10">
+        <div>
+          <h3 className="text-xl font-bold text-gray-800">{title}</h3>
+          <p className="text-sm text-gray-400">{subtitle}</p>
+        </div>
+
+        {/* Dropdown Filter */}
+        <div className="relative">
+          <button 
+            onClick={() => setIsOpen(!isOpen)}
+            className="flex items-center gap-4 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-all min-w-[160px] justify-between shadow-sm"
+          >
+            <span className="truncate">{currentFilterLabel}</span>
+            {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+
+          {isOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)}></div>
+              <div className="absolute right-0 mt-2 w-full bg-white border border-gray-100 rounded-xl shadow-xl z-20 overflow-hidden py-1 animate-in fade-in zoom-in duration-150">
+                {filterOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    className={`w-full text-left px-4 py-3 text-sm transition-colors ${
+                      activeFilterId === option.id 
+                        ? 'text-blue-600 font-bold bg-blue-50' 
+                        : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                    onClick={() => {
+                      onOptionSelect(option.id);
+                      setIsOpen(false);
+                    }}
                   >
-                    {filterOptions.map((option) => (
-                      <button
-                        key={option.id}
-                        onClick={() => {
-                          onOptionSelect(option.id);
-                          setIsDropdownOpen(false);
-                        }}
-                        className={cn(
-                          "w-full text-left px-4 py-2 text-xs font-bold transition-colors",
-                          activeFilterId === option.id ? "bg-blue-50 text-blue-600" : "text-gray-600 hover:bg-gray-50"
-                        )}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </motion.div>
-                </>
-              )}
-            </AnimatePresence>
-          </div>
-        )}
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
-      
-      <div className="h-[400px] w-full">
+
+      <div className="h-64 w-full relative">
+        {/* Y Axis Label */}
+        <div className="absolute -left-12 top-1/2 -rotate-90 text-[10px] font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap">
+          {yAxisLabel}
+        </div>
+
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+          <BarChart data={data} margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
             <XAxis 
               dataKey="name" 
               axisLine={false} 
               tickLine={false} 
-              tick={{ fill: '#9ca3af', fontSize: 10, fontWeight: 500 }}
-              angle={-30}
-              textAnchor="end"
-              height={60}
+              tick={{ fill: '#9ca3af', fontSize: 11, fontWeight: 500 }} 
+              dy={10}
             />
             <YAxis 
               axisLine={false} 
               tickLine={false} 
-              tick={{ fill: '#9ca3af', fontSize: 10, fontWeight: 500 }}
-              ticks={yAxisTicks}
+              tick={{ fill: '#9ca3af', fontSize: 11 }} 
             />
             <Tooltip 
-              cursor={{ fill: 'transparent' }}
-              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+              cursor={{ fill: '#f8fafc' }}
+              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
             />
-            <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={32}>
+            <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={35}>
               {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} />
+                <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
               ))}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
+      </div>
+      
+      {/* X Axis Label */}
+      <div className="mt-8 text-center text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+        {currentFilterLabel} Categories
       </div>
     </div>
   );

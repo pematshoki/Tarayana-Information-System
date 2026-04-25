@@ -1,5 +1,5 @@
 import { useState } from "react";
-import BhutanMap from "./BhutanMap";
+// import BhutanMap from "./BhutanMap";
 
 import {
   Users,

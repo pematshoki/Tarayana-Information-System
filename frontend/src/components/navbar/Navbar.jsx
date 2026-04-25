@@ -29,14 +29,19 @@ const Navbar = ({ setMobileMenuOpen, userRole = "Field Officer", userName = "Phu
     // Programme Officer Routes
     if (path.startsWith('/po/dashboard')) return { title: 'Dashboard', desc: 'Overview of all operations' };
     if (path.startsWith('/po/programmes')) return { title: 'Programmes', desc: 'Manage programmes & projects' };
-    if (path.startsWith('/po/beneficiaries')) return { title: 'Beneficiaries', desc: 'Beneficiary records & households' };
+    if (path.startsWith('/po/beneficiaries')) return { title: 'Beneficiaries', desc: 'Beneficiary records & key activities' };
     if (path.startsWith('/po/reports')) return { title: 'Report & M&E', desc: 'Recent reports & exports' };
     
     // Admin Routes
     if (path.startsWith('/admin')) return { title: 'Admin Panel', desc: 'System management' };
     
     // CD Routes
-    if (path.startsWith('/cd')) return { title: 'CD Dashboard', desc: 'Compliance & Documentation' };
+    if (path.startsWith('/cd/dashboard')) return { title: 'C&D Dashboard', desc: 'Communication & Documentation' };
+    if (path.startsWith('/cd/validation-queue')) return { title: 'CD Dashboard', desc: 'Key actitvity validation' };
+    if (path.startsWith('/cd/reports')) return { title: 'CD Dashboard', desc: 'Recent reports & exports' };
+    if (path.startsWith('/cd/archives')) return { title: 'CD Dashboard', desc: 'View all projects and officers' };
+
+
     
     // MR Routes
     if (path.startsWith('/mr')) return { title: 'MR Dashboard', desc: 'Monitoring & Reporting' };
