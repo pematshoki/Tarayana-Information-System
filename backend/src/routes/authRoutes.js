@@ -15,5 +15,10 @@ router.get("/user/:id", authController.getUserById);
 router.get("/users/count", authController.getUserStats);
 router.delete("/user/:id",isAdmin, authController.deleteUser);
 
+router.get("/programme-officers", authController.getAllProgrammeOfficers);
+router.get("/feild-officers", authController.getAllFieldOfficers);
+
+
+
 
 module.exports = router;

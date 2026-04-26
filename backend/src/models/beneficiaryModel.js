@@ -27,12 +27,23 @@ const beneficiarySchema = new mongoose.Schema({
     female: { type: Number, default: 0 }
   },
   keyActivities: [{
-    activityName: { type: String, required: true, lowercase: true },
-    totalQuantity: { type: Number, required: true },
-    unit: { type: String, enum: ['Acres', 'Litres', 'Nos', 'Meters'], required: true },
-    specifications: [String],
+    // Remove 'required: true' from these to allow training-only entries
+    activityName: { type: String, lowercase: true }, 
+    totalQuantity: { type: Number },
+    unit: { type: String, enum: ['Acres', 'Litres', 'Nos', 'Meters'] },
+    specifications: {
+    type: [Number],
+    validate: {
+      validator: arr => arr.every(n => typeof n === 'number'),
+      message: 'Specifications must be numbers'
+    }
+  },
     isTraining: { type: Boolean, default: false },
-    trainingDetails: { date: Date, type: String }
+    // FIXED: Changed from String to an Object structure
+    trainingDetails: {
+      date: { type: Date },
+      type: { type: String, lowercase: true }
+    }
   }]
 }, { timestamps: true });
 

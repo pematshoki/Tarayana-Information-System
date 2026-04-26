@@ -2,7 +2,8 @@ const User = require("../models/userModel");
 const Role = require("../models/roleModel");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
-const sendEmail = require("../utils/email");
+// const sendEmail = require("../utils/email");
+const { sendEmail } = require("../utils/email");
 
 exports.register = async (req, res) => {
   try {
@@ -334,5 +335,52 @@ exports.getUserStats = async (req, res) => {
 
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+
+
+
+
+
+/**
+ * @desc    Fetch all users with the 'Programme Officer' role
+ * @route   GET /api/users/programme-officers
+ */
+exports.getAllProgrammeOfficers = async (req, res) => {
+  try {
+    // 1. Find the Role ID for Programme Officer
+    const role = await Role.findOne({ roleName: "ProgrammeOfficer" });
+    if (!role) return res.status(404).json({ success: false, message: "Role not found" });
+
+    // 2. Find all users with that roleId
+    const officers = await User.find({ roleId: role._id })
+      .select("-password") // Don't send passwords back!
+      .sort({ email: 1 });
+
+    res.status(200).json({ success: true, count: officers.length, data: officers });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    Fetch all users with the 'Field Officer' role
+ * @route   GET /api/users/field-officers
+ */
+exports.getAllFieldOfficers = async (req, res) => {
+  try {
+    // 1. Find the Role ID for Field Officer
+    const role = await Role.findOne({ roleName: "FieldOfficer" });
+    if (!role) return res.status(404).json({ success: false, message: "Role not found" });
+
+    // 2. Find all users with that roleId
+    const officers = await User.find({ roleId: role._id })
+      .select("-password")
+      .sort({ email: 1 });
+
+    res.status(200).json({ success: true, count: officers.length, data: officers });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };
