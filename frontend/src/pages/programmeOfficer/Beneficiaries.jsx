@@ -168,7 +168,7 @@ const Beneficiaries = () => {
                 <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">Intervention</th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">Nos</th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">Acres</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">Litres</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">Capacity</th>
 
                 <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider text-center">Actions</th>
               </tr>

@@ -1,158 +1,508 @@
-import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, Plus, UserPlus } from 'lucide-react';
-import { motion } from 'motion/react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Plus, Trash2, Save, ChevronDown } from 'lucide-react';
+import axios from 'axios';
 import SuccessModal from '../../components/modals/SuccessModal';
 
 const RegisterBeneficiary = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  
+  // 🔐 1. REAL SESSION RETRIEVAL
+  const token = localStorage.getItem("token");
+  const storedUser = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : null;
+  const PO_ID = storedUser?.id || storedUser?._id;
 
-  const isPO = location.pathname.startsWith('/po');
-  const backPath = isPO ? '/po/beneficiaries' : '/beneficiaries';
+  const [projects, setProjects] = useState([]);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
-  const handleRegister = () => {
-    setIsSuccessModalOpen(true);
-    setTimeout(() => {
-      setIsSuccessModalOpen(false);
-      navigate(backPath);
-    }, 3000);
+  // 🛡️ 2. AUTHENTICATION GUARD
+  useEffect(() => {
+    if (!token || !storedUser) {
+      console.warn("Unauthorized access. Redirecting...");
+      navigate("/login", { replace: true });
+    }
+  }, [token, storedUser, navigate]);
+
+  const [formData, setFormData] = useState({
+    projectId: '',
+    year: 2026,
+    gender: '',
+    cid: '',
+    name: '',
+    dzongkhag: '',
+    gewog: '',
+    village: '',
+    houseNo: '',
+    thramNo: '',
+    indirectBeneficiaries: { male: 0, female: 0 },
+    keyActivities: [{ 
+      activityName: '', 
+      totalQuantity: '', 
+      unit: '', 
+      remarks: '',
+      isTraining: false,
+      trainingDetails: { date: '', type: '' },
+      specifications: [] 
+    }]
+  });
+
+  // 📡 3. FETCH PROJECTS USING AUTH HEADERS
+  useEffect(() => {
+    const fetchProjects = async () => {
+      if (!PO_ID || !token) return;
+      try {
+        const res = await axios.get(`http://localhost:5000/api/projects/field-officer/${PO_ID}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setProjects(res.data.data || []);
+      } catch (err) { 
+        console.error("Fetch error", err);
+        if (err.response?.status === 401) navigate("/login");
+      }
+    };
+    fetchProjects();
+  }, [PO_ID, token]);
+  
+
+  const getTextColor = (value) => value ? "text-black" : "text-gray-400";
+
+  const selectedProject = projects.find(p => p._id === formData.projectId);
+  const availableDzongkhags = [];
+  if (selectedProject && selectedProject.dzongkhag) {
+    if (Array.isArray(selectedProject.dzongkhag)) {
+      availableDzongkhags.push(...selectedProject.dzongkhag);
+    } else {
+      availableDzongkhags.push(selectedProject.dzongkhag.toString());
+    }
+  }
+
+  const addActivity = () => {
+    const lastItemType = formData.keyActivities[formData.keyActivities.length - 1]?.isTraining;
+    setFormData({
+      ...formData,
+      keyActivities: [...formData.keyActivities, { 
+        activityName: '', totalQuantity: 0, unit: '', remarks: '',
+        isTraining: lastItemType || false,
+        trainingDetails: { date: '', type: '' },
+        specifications: ['']
+      }]
+    });
   };
 
+
+
+const handleActivityChange = (idx, field, value) => {
+  const newActs = [...formData.keyActivities];
+
+  if (!newActs[idx].specifications) {
+    newActs[idx].specifications = [];
+  }
+
+  // quantity controls specs length
+  if (field === "totalQuantity") {
+    const qty = Math.max(0, parseInt(value) || 0);
+
+    newActs[idx].totalQuantity = qty;
+
+    const old = newActs[idx].specifications || [];
+
+    newActs[idx].specifications = Array.from(
+      { length: qty },
+      (_, i) => old[i] || ""
+    );
+  }
+
+  // individual spec input
+  else if (field === "specifications") {
+    const { sIdx, val } = value;
+
+    const clean = val.replace(/[^0-9]/g, "");
+
+    newActs[idx].specifications[sIdx] = clean;
+  }
+
+  // training toggle
+  else if (field === "isTraining") {
+    newActs[idx].isTraining = value;
+
+    if (value) {
+      newActs[idx].totalQuantity = 1;
+      newActs[idx].unit = "";
+      newActs[idx].specifications = [];
+    }
+  }
+
+  else if (field.includes(".")) {
+    const [p, c] = field.split(".");
+    newActs[idx][p] = {
+      ...newActs[idx][p],
+      [c]: value
+    };
+  }
+
+  else {
+    newActs[idx][field] = value;
+  }
+
+  setFormData({ ...formData, keyActivities: newActs });
+};
+
+
+const handleSubmit = async () => {
+    try {
+      // Validate
+      for (let act of formData.keyActivities) {
+        if (!act.isTraining && (!act.unit || act.unit.trim() === "")) {
+          alert("Please select unit for all activities");
+          return;
+        }
+      }
+
+      // Clean payload
+      const payload = {
+        ...formData,
+        keyActivities: formData.keyActivities.map(act => {
+          if (act.isTraining) {
+            return {
+              activityName: act.activityName,
+              isTraining: true,
+              trainingDetails: act.trainingDetails,
+              totalQuantity: 1,
+              specifications: []
+            };
+          }
+          return {
+            activityName: act.activityName,
+            isTraining: false,
+            totalQuantity: act.totalQuantity,
+            unit: act.unit,
+            specifications: Array.isArray(act.specifications) 
+            ? act.specifications
+                .filter(s => s !== "" && s !== null) 
+                .map(s => Number(s))                
+            : []
+          };
+        })
+      };
+
+      // API call with Token
+      await axios.post(
+        "http://localhost:5000/api/beneficiaries",
+        payload,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      setIsSuccess(true);
+      setShowConfirm(false);
+
+      setTimeout(() => {
+        navigate("/beneficiaries");
+      }, 2000);
+
+    } catch (err) {
+      console.error("❌ Error:", err);
+      alert(err.response?.data?.message || "Registration failed");
+    }
+  };
+
+  // 🛡️ Guard Clause
+  if (!token || !storedUser) return null;
+
+
+
+
+
+
+
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-6"
-    >
-      <button 
-        onClick={() => navigate(backPath)}
-        className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors text-sm font-medium"
-      >
-        <ArrowLeft size={16} />
-        <span>Back to Beneficiaries</span>
+    <div className="max-w-4xl mx-auto space-y-6 pb-20 px-4 pt-10">
+      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-500 font-medium hover:text-blue-500 transition-colors">
+        <ArrowLeft size={18}/> Back
       </button>
-
-      <div>
-        <h3 className="text-xl font-bold text-gray-900">Register New Beneficiary</h3>
-        <p className="text-sm text-gray-400">Fill in the Details to register a new Beneficiary</p>
-      </div>
-
-      <div className="space-y-8">
-        {/* Personal Information */}
-        <div className="space-y-6">
-          <h4 className="font-bold text-gray-900 border-b border-gray-100 pb-2">Personal Information</h4>
+      
+      <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+        <h2 className="text-xl font-bold mb-6 text-gray-800">Register New Beneficiary</h2>
+        
+        <form onSubmit={(e) => { e.preventDefault(); setShowConfirm(true); }} className="space-y-6">
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-gray-700">CID Number</label>
-              <input type="text" placeholder="Enter CID Number" className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+           <div className="space-y-1 relative">
+              <label className="text-sm font-bold text-gray-700">Project <span className="text-red-500">*</span></label>
+              <select required className={`w-full p-3 border rounded-xl border-blue-100 outline-none appearance-none ${getTextColor(formData.projectId)}`}
+                value={formData.projectId} onChange={e => setFormData({...formData, projectId: e.target.value, dzongkhag: ''})}>
+                <option value="" className="text-gray-400">Select associated project</option>
+                {projects.map(p => <option key={p._id} value={p._id} className="text-black">{p.projectName}</option>)}
+              </select>
+              <ChevronDown className="absolute right-3 top-[38px] text-blue-400 pointer-events-none" size={18} />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-gray-700">Name</label>
-              <input type="text" placeholder="Enter Name" className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-gray-700">Reporting Year <span className="text-red-500">*</span></label>
+              <input required type="number" className={`w-full p-3 border rounded-xl outline-none font-medium ${getTextColor(formData.year)}`} 
+                value={formData.year} onChange={e => setFormData({...formData, year: e.target.value})} />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-gray-700">Date of Birth</label>
-              <input type="date" className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-gray-700">Full Name <span className="text-red-500">*</span></label>
+              <input required type="text" className={`w-full p-3 border rounded-xl outline-none ${getTextColor(formData.name)}`} placeholder="Enter Full Name" 
+                value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-gray-700">Dzongkhag</label>
-              <div className="relative">
-                <select className="w-full appearance-none px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-gray-500">
-                  <option>Enter Dzongkhag</option>
-                  <option>Thimphu</option>
-                  <option>Paro</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-              </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-gray-700">CID <span className="text-red-500">*</span></label>
+              <input required type="text" maxLength={11} className={`w-full p-3 border rounded-xl outline-none ${getTextColor(formData.cid)}`} placeholder="Enter 11 Digit CID (Numbers only)" 
+                value={formData.cid} onChange={e => setFormData({...formData, cid: e.target.value.replace(/[^0-9]/g, '')})} />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-gray-700">Village</label>
-              <input type="text" placeholder="Enter Village" className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+
+            <div className="space-y-1 relative">
+              <label className="text-sm font-bold text-gray-700">Gender <span className="text-red-500">*</span></label>
+              <select required className={`w-full p-3 border rounded-xl outline-none appearance-none ${getTextColor(formData.gender)}`} 
+                value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})}>
+                <option value="" className="text-gray-400">Select Gender</option>
+                <option value="M" className="text-black">Male</option>
+                <option value="F" className="text-black">Female</option>
+              </select>
+              <ChevronDown className="absolute right-3 top-[38px] text-gray-400 pointer-events-none" size={18} />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-gray-700">Gewog</label>
-              <input type="text" placeholder="Enter Gewog" className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+
+           <div className="space-y-1 relative">
+              <label className="text-sm font-bold text-gray-700">Dzongkhag <span className="text-red-500">*</span></label>
+              <select required className={`w-full p-3 border rounded-xl outline-none appearance-none capitalize ${getTextColor(formData.dzongkhag)}`} 
+                value={formData.dzongkhag} onChange={e => setFormData({...formData, dzongkhag: e.target.value})}>
+                <option value="" className="text-gray-400">Select Dzongkhag</option>
+                {availableDzongkhags.map((d, index) => <option key={index} value={d.toLowerCase()} className="text-black">{d}</option>)}
+              </select>
+              <ChevronDown className="absolute right-3 top-[38px] text-gray-400 pointer-events-none" size={18} />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-gray-700">House No</label>
-              <input type="text" placeholder="Enter House No" className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-gray-700">Gewog <span className="text-red-500">*</span></label>
+              <input required type="text" className={`w-full p-3 border rounded-xl outline-none ${getTextColor(formData.gewog)}`} placeholder="Enter Gewog" 
+              value={formData.gewog} onChange={e => setFormData({...formData, gewog: e.target.value})} />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-gray-700">Thram No</label>
-              <input type="text" placeholder="Enter Thram No" className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-gray-700">Village <span className="text-red-500">*</span></label>
+              <input required type="text" className={`w-full p-3 border rounded-xl outline-none ${getTextColor(formData.village)}`} placeholder="Enter Village" 
+                value={formData.village} onChange={e => setFormData({...formData, village: e.target.value})} />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-gray-700">Project</label>
-              <div className="relative">
-                <select className="w-full appearance-none px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-gray-500">
-                  <option>Select Project</option>
-                  <option>Housing Improvement</option>
-                  <option>Water Project</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-              </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-gray-700">House No <span className="text-red-500">*</span></label>
+              <input required type="text" className={`w-full p-3 border rounded-xl outline-none ${getTextColor(formData.houseNo)}`} placeholder="Enter House No" 
+                value={formData.houseNo} onChange={e => setFormData({...formData, houseNo: e.target.value})} />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-gray-700">Phone Number</label>
-              <input type="text" placeholder="Enter Phone Number" className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-gray-700">Thram No <span className="text-red-500">*</span></label>
+              <input required type="text" className={`w-full p-3 border rounded-xl outline-none ${getTextColor(formData.thramNo)}`} placeholder="Enter Thram No (Numbers only)" 
+                value={formData.thramNo} onChange={e => setFormData({...formData, thramNo: e.target.value.replace(/[^0-9]/g, '')})} />
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <label className="text-xs text-gray-400">Male</label>
+            <input 
+              type="number" 
+              min="0" 
+              className={`p-3 border rounded-xl w-full outline-none ${getTextColor(formData.indirectBeneficiaries.male)}`} 
+              value={formData.indirectBeneficiaries.male === 0 ? '' : formData.indirectBeneficiaries.male} 
+              placeholder="0"
+              onChange={e => {
+                const val = e.target.value === '' ? 0 : parseInt(e.target.value);
+                setFormData({...formData, indirectBeneficiaries: {...formData.indirectBeneficiaries, male: Math.max(0, val)}});
+              }} 
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-gray-400">Female</label>
+            <input 
+              type="number" 
+              min="0" 
+              className={`p-3 border rounded-xl w-full outline-none ${getTextColor(formData.indirectBeneficiaries.female)}`} 
+              value={formData.indirectBeneficiaries.female === 0 ? '' : formData.indirectBeneficiaries.female} 
+              placeholder="0"
+              onChange={e => {
+                const val = e.target.value === '' ? 0 : parseInt(e.target.value);
+                setFormData({...formData, indirectBeneficiaries: {...formData.indirectBeneficiaries, female: Math.max(0, val)}});
+              }} 
+            />
           </div>
         </div>
 
-        {/* Indirect Beneficiaries & Support Details */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="space-y-6">
-            <h4 className="font-bold text-gray-900 border-b border-gray-100 pb-2">Indirect Beneficiaries</h4>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl">
-                <span className="text-sm font-medium text-gray-600">Male :</span>
-                <input type="number" defaultValue={0} className="w-20 text-center bg-gray-50 border-none focus:ring-0 text-sm font-bold" />
-              </div>
-              <div className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl">
-                <span className="text-sm font-medium text-gray-600">Female :</span>
-                <input type="number" defaultValue={0} className="w-20 text-center bg-gray-50 border-none focus:ring-0 text-sm font-bold" />
-              </div>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-gray-900">Intervention</h3>
+              <button type="button" onClick={addActivity} className="text-blue-500 text-sm font-bold flex items-center gap-1 hover:bg-blue-50 p-1 px-2 rounded-lg transition-colors">
+                <Plus size={16}/> {formData.keyActivities[formData.keyActivities.length-1]?.isTraining ? "Add New Training" : "Add New Activity"}
+              </button>
             </div>
-          </div>
-          <div className="space-y-6">
-            <h4 className="font-bold text-gray-900 border-b border-gray-100 pb-2">Support Details</h4>
-            <textarea 
-              placeholder="Enter support details.." 
-              rows={5}
-              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
-            ></textarea>
-          </div>
-        </div>
 
-        <div className="flex items-center justify-end gap-4 pt-4">
-          <button 
-            onClick={() => navigate(backPath)}
-            className="px-12 py-2.5 bg-white text-gray-600 rounded-xl font-bold hover:bg-gray-50 transition-all border border-gray-200"
-          >
-            Cancel
+            {formData.keyActivities.map((act, idx) => (
+              <div key={idx} className="p-5 border border-dashed border-gray-200 rounded-2xl space-y-4 relative bg-gray-50/30">
+                {formData.keyActivities.length > 1 && (
+                  <button type="button" onClick={() => setFormData({...formData, keyActivities: formData.keyActivities.filter((_, i) => i !== idx)})} 
+                    className="absolute top-4 right-4 text-red-400 hover:text-red-600"><Trash2 size={18}/></button>
+                )}
+
+                <div className="flex gap-4 mb-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name={`type-${idx}`} checked={!act.isTraining} onChange={() => handleActivityChange(idx, 'isTraining', false)} className="accent-blue-500" />
+                    <span className="text-xs font-bold uppercase text-gray-900">Key Activity</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name={`type-${idx}`} checked={act.isTraining} onChange={() => handleActivityChange(idx, 'isTraining', true)} className="accent-blue-500" />
+                    <span className="text-xs font-bold uppercase text-gray-900">Training</span>
+                  </label>
+                </div>
+
+                <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase">{act.isTraining ? "Training Name" : "Activity Name"}</label>
+                    <input required placeholder={act.isTraining ? "Enter training name..." : "Enter activity name..."} className={`w-full p-2 border-b bg-transparent outline-none focus:border-blue-500 transition-all ${getTextColor(act.activityName)}`} 
+                      value={act.activityName} onChange={e => handleActivityChange(idx, 'activityName', e.target.value)} />
+                </div>
+
+                {act.isTraining ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-500 uppercase">Training Date</label>
+                      <input required type="date" className={`w-full p-2 border rounded-lg outline-none ${getTextColor(act.trainingDetails.date)}`} 
+                        value={act.trainingDetails.date} onChange={e => handleActivityChange(idx, 'trainingDetails.date', e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-500 uppercase">Training Type</label>
+                      <input required placeholder="e.g. Technical, Financial" className={`w-full p-2 border rounded-lg outline-none ${getTextColor(act.trainingDetails.type)}`} 
+                        value={act.trainingDetails.type} onChange={e => handleActivityChange(idx, 'trainingDetails.type', e.target.value)} />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase">Quantity</label>
+                    <input 
+                      required 
+                      type="number" 
+                      min="0" 
+                      className={`w-full p-2 border rounded-lg outline-none ${getTextColor(act.totalQuantity)}`} 
+                      value={act.totalQuantity === 0 ? '' : act.totalQuantity} 
+                      placeholder="0"
+                      onChange={e => {
+                        const val = e.target.value === '' ? 0 : e.target.value;
+                        handleActivityChange(idx, 'totalQuantity', val);
+                      }} 
+                    />
+                  </div>
+
+                  
+                  <div className="space-y-1 relative">
+                  <label className="text-xs font-bold text-gray-500 uppercase">Unit</label>
+                  <select 
+                    required 
+                    className={`w-full p-2 border rounded-lg outline-none appearance-none bg-white ${getTextColor(act.unit)}`} 
+                    value={act.unit} 
+                    onChange={e => handleActivityChange(idx, 'unit', e.target.value)}
+                  >
+                    {/* Placeholder: remains grey via getTextColor when value is '' */}
+                    <option value="" disabled={!!act.unit} className="text-gray-400">Select Unit</option>
+                    
+                    {/* Real options: explicitly set to text-black */}
+                    <option value="Nos" disabled={act.unit !== '' && act.unit !== 'Nos'} className="text-black">Nos</option>
+                    <option value="Litres" disabled={act.unit !== '' && act.unit !== 'Litres'} className="text-black">Litres</option>
+                    <option value="Acres" disabled={act.unit !== '' && act.unit !== 'Acres'} className="text-black">Acres</option>
+                    {/* <option value="Meters" disabled={act.unit !== '' && act.unit !== 'Meters'} className="text-black">Meters</option> */}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-[28px] text-gray-400 pointer-events-none" size={14} />
+                </div>
+
+
+                  </div>
+                )}
+
+                {!act.isTraining && act.totalQuantity > 0 && (
+                  <div className="space-y-3 p-3 bg-white rounded-xl border border-gray-100">
+                      <label className="text-xs font-bold text-gray-500 uppercase">Specifications (optional)</label>
+                      <span className="block text-sm sm:text-base text-gray-400 italic leading-relaxed">
+                        Please enter numeric values only. For capacity, use total liters (e.g., 500, 1000). 
+                        For land area, use total acres (e.g., 2, 3.5, 10) based on legal deed measurements.
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {act.specifications.map((spec, sIdx) => (
+                          <input 
+                            key={sIdx}
+                            
+                            placeholder={`Enter amount`}
+                            className="p-2 border rounded-lg text-sm outline-none focus:border-blue-400 text-black" // Added text-black
+                            value={spec}
+                            onChange={(e) => handleActivityChange(idx, 'specifications', { sIdx, val: e.target.value })}
+                          />
+                        ))}
+                      </div>
+                  </div>
+                )}
+                <br />
+              </div>
+            ))}
+          </div>
+
+          <button type="submit" className="w-full bg-[#3498db] text-white p-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-600 transition-all shadow-lg active:scale-[0.98]">
+            <Save size={20}/> Review and Register
           </button>
-          <button 
-            onClick={handleRegister}
-            className="flex items-center gap-2 px-12 py-2.5 bg-[#3498db] text-white rounded-xl hover:bg-blue-600 transition-all shadow-lg shadow-blue-200 font-bold"
-          >
-            <Plus size={20} />
-            <span>Register</span>
-          </button>
-        </div>
+        </form>
       </div>
 
-      <SuccessModal 
-        isOpen={isSuccessModalOpen}
-        onClose={() => setIsSuccessModalOpen(false)}
-        message="Beneficiary Registered Successfully"
-        description="The new beneficiary has been successfully added to the system."
-        icon={UserPlus}
-        iconColor="text-blue-500"
-        iconBg="bg-blue-50"
-      />
-    </motion.div>
+      {showConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-2xl w-full shadow-2xl space-y-6 overflow-y-auto max-h-[90vh]">
+            <h3 className="text-xl font-bold text-gray-800 border-b pb-2">Confirm Beneficiary Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-sm text-gray-600 bg-gray-50 p-6 rounded-2xl border">
+                <p className="md:col-span-2 text-blue-600 font-bold border-b pb-1 mb-1">Basic Information</p>
+                <p><strong>Project:</strong> <span className="text-black font-medium">{projects.find(p => p._id === formData.projectId)?.projectName || 'N/A'}</span></p>
+                <p><strong>Reporting Year:</strong> <span className="text-black font-medium">{formData.year}</span></p>
+                <p><strong>Full Name:</strong> <span className="text-black font-medium">{formData.name}</span></p>
+                <p><strong>CID:</strong> <span className="text-black font-medium">{formData.cid}</span></p>
+                <p><strong>Gender:</strong> <span className="text-black font-medium">{formData.gender === 'M' ? 'Male' : 'Female'}</span></p>
+                
+                <p className="md:col-span-2 text-blue-600 font-bold border-b pb-1 mt-2 mb-1">Location Details</p>
+                <p><strong>Dzongkhag:</strong> <span className="text-black font-medium capitalize">{formData.dzongkhag}</span></p>
+                <p><strong>Gewog:</strong> <span className="text-black font-medium">{formData.gewog}</span></p>
+                <p><strong>Village:</strong> <span className="text-black font-medium">{formData.village}</span></p>
+                <p><strong>House No:</strong> <span className="text-black font-medium">{formData.houseNo}</span></p>
+                <p><strong>Thram No:</strong> <span className="text-black font-medium">{formData.thramNo}</span></p>
+
+                <p className="md:col-span-2 text-blue-600 font-bold border-b pb-1 mt-2 mb-1">Indirect Beneficiaries</p>
+                <p><strong>Male:</strong> <span className="text-black font-medium">{formData.indirectBeneficiaries.male}</span></p>
+                <p><strong>Female:</strong> <span className="text-black font-medium">{formData.indirectBeneficiaries.female}</span></p>
+
+                <p className="md:col-span-2 text-blue-600 font-bold border-b pb-1 mt-2 mb-1">Intervention ({formData.keyActivities.length})</p>
+                <div className="md:col-span-2 space-y-3">
+                  {formData.keyActivities.map((act, i) => (
+                    <div key={i} className="bg-white p-3 rounded-lg border border-gray-100">
+                      <p className="font-bold text-black">{act.isTraining ? 'Training:' : 'Activity:'} {act.activityName}</p>
+                      <p className="text-xs text-gray-500">
+                        {act.isTraining 
+                          ? `Date: ${act.trainingDetails.date} | Type: ${act.trainingDetails.type}` 
+                          : `Quantity: ${act.totalQuantity} ${act.unit}`}
+                      </p>
+                      {!act.isTraining && act.remarks && <p className="text-xs italic text-gray-400 mt-1">Amount: {act.remarks}</p>}
+                    </div>
+                  ))}
+                </div>
+            </div>
+            <div className="flex gap-4">
+              <button onClick={() => setShowConfirm(false)} className="flex-1 p-4 border rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-all">Go Back</button>
+              <button onClick={handleSubmit} className="flex-1 p-4 bg-[#3498db] text-white rounded-xl font-bold hover:bg-blue-600 transition-all shadow-md">Confirm & Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <SuccessModal isOpen={isSuccess} onClose={() => setIsSuccess(false)} message="Beneficiary Registered Successfully" />
+    </div>
   );
 };
 

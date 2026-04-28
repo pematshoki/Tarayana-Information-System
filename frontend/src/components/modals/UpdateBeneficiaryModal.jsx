@@ -167,7 +167,11 @@ useEffect(() => {
           isTraining: false,
           totalQuantity: act.totalQuantity,
           unit: act.unit,
-          specifications: act.specifications
+          specifications: Array.isArray(act.specifications) 
+          ? act.specifications
+              .filter(s => s !== "" && s !== null) // Remove empty inputs
+              .map(s => Number(s))                // Convert "100" to 100
+          : []
         };
       })
     };
@@ -336,7 +340,7 @@ useEffect(() => {
                               <option value="" disabled={!!act.unit}>Select Unit</option>
                               <option value="Nos" disabled={act.unit !== '' && act.unit !== 'Nos'} className="text-black">Nos</option>
                               <option value="Litres" disabled={act.unit !== '' && act.unit !== 'Litres'} className="text-black">Litres</option>
-                              <option value="Kg" disabled={act.unit !== '' && act.unit !== 'Kg'} className="text-black">Kg</option>
+                              {/* <option value="Kg" disabled={act.unit !== '' && act.unit !== 'Kg'} className="text-black">Kg</option> */}
                               <option value="Acres" disabled={act.unit !== '' && act.unit !== 'Acres'} className="text-black">Acres</option>
                             </select>
                             <ChevronDown className="absolute right-2 top-[24px] text-gray-400 pointer-events-none" size={14} />
@@ -344,12 +348,16 @@ useEffect(() => {
                         </div>
                         {!act.isTraining && act.totalQuantity > 0 && (
                           <div className="space-y-2">
-                             <label className="text-[10px] font-bold text-black uppercase">Specifications (Numbers only)</label>
+                             <label className="text-[10px] font-bold text-black uppercase">Specifications (optional)</label>
+                             <span className="block text-sm sm:text-base text-gray-400 italic leading-relaxed">
+                              Please enter numeric values only. For capacity, use total liters (e.g., 500, 1000). 
+                              For land area, use total acres (e.g., 2, 3.5, 10) based on legal deed measurements.
+                            </span>
                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                {act.specifications?.map((spec, sIdx) => (
                                  <input 
                                    key={sIdx} 
-                                   required 
+                                    
                                    placeholder="Enter amount" 
                                    className="p-2 border rounded-lg text-sm text-black outline-none focus:border-blue-400"
                                    value={spec} 

@@ -1,169 +1,275 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { ArrowLeft, FileText, Calendar, Globe, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { 
-  ArrowLeft, 
-  FileText,
-  Calendar,
-  User,
-  Globe,
-  Users
-} from 'lucide-react';
+import axios from 'axios';
 import { motion } from 'motion/react';
 import { projectsData, beneficiariesData } from '../../data/mockData';
 
-const InfoCard = ({ icon: Icon, label, value }) => (
+
+const InfoCard = ({ icon: Icon, label, value, valueColor = "text-sm font-bold text-gray-900" }) => (
   <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-    <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-500">
-      <Icon size={24} />
-    </div>
+    <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-500"><Icon size={24} /></div>
     <div>
       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{label}</p>
-      <p className="text-sm font-bold text-gray-900">{value}</p>
+      <p className={valueColor}>{value}</p>
     </div>
   </div>
 );
+
+// --- Pagination Component ---
+const Pagination = ({ currentPage, totalPages, onPageChange }) => {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="px-6 py-4 bg-white border-t border-gray-100 flex items-center justify-between">
+      <div className="text-sm text-gray-500 font-medium">
+        Page <span className="text-[#3498db] font-bold">{currentPage}</span> / {totalPages}
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
+          disabled={currentPage === 1}
+          className={`p-2 rounded-lg border border-gray-200 transition-all ${currentPage === 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-gray-50 text-gray-600'}`}
+        >
+          <ChevronLeft size={18} />
+        </button>
+        <div className="flex gap-1">
+          {[...Array(totalPages)].map((_, i) => (
+            <button
+              key={i + 1}
+              onClick={() => onPageChange(i + 1)}
+              className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all ${currentPage === i + 1 ? 'bg-[#3498db] text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+            >
+              {i + 1}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
+          disabled={currentPage === totalPages}
+          className={`p-2 rounded-lg border border-gray-200 transition-all ${currentPage === totalPages ? 'opacity-30 cursor-not-allowed' : 'hover:bg-gray-50 text-gray-600'}`}
+        >
+          <ChevronRight size={18} />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const SpecificProjectDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const location = useLocation();
-  
-  // Find project data
-  const project = projectsData.find(p => p.cid === id) || projectsData[0];
-  
-  // Determine back path
-  const backPath = location.state?.from || '/projects';
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Pagination States
+  const [actPage, setActPage] = useState(1);
+  const [benPage, setBenPage] = useState(1);
+  const itemsPerPage = 5;
+
+const backPath = location.state?.from || '/projects';
   const backLabel = location.state?.label || 'Back to Projects';
 
-  const activities = [
-    { dzongkhag: 'Thimphu', gewog: 'Kawang', activity: 'Water Tap SLM', quantity: '15', training: 'Sanitation and Training', gender: 'F : 10   M : 10' },
-    { dzongkhag: '', gewog: 'Shaba', activity: 'Water Tank', quantity: '20', training: '', gender: '' },
-    { dzongkhag: 'Paro', gewog: 'Shaba', activity: 'Water Tap SLM', quantity: '20', training: '', gender: '' },
-    { dzongkhag: 'Punakha', gewog: 'Guma', activity: 'Water Tap SLM', quantity: '20', training: '', gender: '' },
-  ];
+  useEffect(() => {
+    const fetchSummary = async () => {
+      try {
+        const response = await axios.get(`http://localhost:5000/api/projects/summary/${id}`);
+        setData(response.data);
+        console.log(response.data)
+      } catch (error) {
+        console.error("Error fetching summary:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSummary();
+  }, [id]);
+
+  if (loading) return <div className="p-10 text-center">Loading detailed summary...</div>;
+  if (!data) return <div className="p-10 text-center text-red-500">Project not found.</div>;
+
+  const { project, projectSummary, geographicBreakdown, beneficiaryList } = data;
+
+  const getDuration = (start, end) => {
+    if (!start || !end) return "N/A";
+    const s = new Date(start);
+    const e = new Date(end);
+    const diffDays = Math.ceil(Math.abs(e - s) / (1000 * 60 * 60 * 24));
+    return `${Math.floor(diffDays / 30)} months, ${diffDays % 30} days`;
+  };
+
+  const indirectTotal = (projectSummary.totalIndirectMale || 0) + (projectSummary.totalIndirectFemale || 0);
+
+  // --- Logic for Key Activities Table (Flattening & Row Spanning) ---
+  const flattenedActivities = geographicBreakdown.flatMap(geo => 
+    geo.activities.map(act => ({ ...act, location: geo.location }))
+  );
+  
+  const totalActPages = Math.ceil(flattenedActivities.length / itemsPerPage);
+  const currentActs = flattenedActivities.slice((actPage - 1) * itemsPerPage, actPage * itemsPerPage);
+
+  // --- Logic for Beneficiary Table ---
+  const totalBenPages = Math.ceil(beneficiaryList.length / itemsPerPage);
+  const currentBens = beneficiaryList.slice((benPage - 1) * itemsPerPage, benPage * itemsPerPage);
 
   return (
     <div className="space-y-8 pb-10">
-      {/* Back Button */}
-      <button 
-        onClick={() => navigate(backPath)}
-        className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors text-sm font-medium"
-      >
-        <ArrowLeft size={16} />
-        <span>{backLabel}</span>
+      <button onClick={() => navigate(backPath)} className="flex items-center gap-2 text-gray-400 hover:text-gray-600 text-sm font-medium">
+        <ArrowLeft size={16} /> <span>{backLabel}</span>
       </button>
 
-      {/* Project Title Card */}
+      {/* Project Header */}
       <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm space-y-2">
-        <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
-        <p className="text-sm text-gray-500 max-w-3xl leading-relaxed">
-          Improving housing resilience against climate impacts in rural communities.
-        </p>
+        <h1 className="text-2xl font-bold text-gray-900">{project.projectName}</h1>
+        <p className="text-sm text-gray-500 max-w-3xl leading-relaxed">{project.description}</p>
+        <div className="pt-2">
+            <span className="px-4 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-100">
+                {project.status}
+            </span>
+        </div>
       </div>
 
-      {/* Project Information Grid */}
+      {/* Stats Grid */}
       <div className="space-y-4">
-        <h3 className="text-lg font-bold text-gray-900">Project information</h3>
+        <h3 className="text-lg font-bold text-gray-900">Project Overview</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <InfoCard icon={FileText} label="Programme" value="Social Development" />
-          <InfoCard icon={FileText} label="Dzongkhag" value="Trashigang" />
-          <InfoCard icon={FileText} label="Duration" value="1 year" />
-          <InfoCard icon={FileText} label="End Date" value="Dec 31, 2025" />
-          <InfoCard icon={FileText} label="Donor" value="UNDP" />
-          <InfoCard icon={FileText} label="Total Beneficiaries" value="30" />
+          <InfoCard icon={FileText} label="Programme" value={project.programme?.map(p => p.programmeName).join(', ')} />
+          <InfoCard icon={Users} label="Direct Beneficiaries" value={`${projectSummary.totalDirect}`} />
+          <InfoCard icon={Users} label="Indirect Total" value={`${indirectTotal} (M:${projectSummary.totalIndirectMale} F:${projectSummary.totalIndirectFemale})`} />
+          <InfoCard icon={Calendar} label="Duration" value={getDuration(project.startDate, project.endDate)} />
+          <InfoCard icon={Globe} label="Donor" value={project.donor?.length > 0 ? project.donor.map(d => d.name).join(', ') : "None"} />
+          <InfoCard icon={Globe} label="Partner" value={project.partner?.length > 0 ? project.partner.map(p => p.name).join(', ') : "None"} />
         </div>
       </div>
 
-      {/* Key Activities Section */}
+      {/* Key Activities Table */}
       <div className="space-y-4">
-        <h3 className="text-lg font-bold text-gray-900">Key Activities</h3>
+        <h3 className="text-lg font-bold text-gray-900">Key Activities Breakdown</h3>
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50/50 border-b border-gray-100">
-                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">
-                    DZONGKHAG <span className="text-red-500">*</span>
-                  </th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">
-                    GEWOG <span className="text-red-500">*</span>
-                  </th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">
-                    Activities <span className="text-red-500">*</span>
-                  </th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">
-                    Quantity <span className="text-red-500">*</span>
-                  </th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">Training</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">Gender</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {activities.map((act, index) => (
-                  <tr key={index} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-4 text-sm font-bold text-gray-900">{act.dzongkhag}</td>
-                    <td className="px-6 py-4 text-sm font-bold text-gray-900">{act.gewog}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{act.activity}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{act.quantity}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{act.training}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{act.gender}</td>
+          <table className="w-full text-left">
+            <thead className="bg-gray-50/50">
+              <tr>
+                <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase">Dzongkhag</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase">Gewog</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase">Village</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase">Activity Name</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase text-center">Total Quantity</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase text-center">Total Capacity</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {currentActs.map((act, idx) => {
+                // Show Dzongkhag only for the first occurrence in the current slice
+                const isFirstDzo = idx === 0 || currentActs[idx - 1].location.dzongkhag !== act.location.dzongkhag;
+                return (
+                  <tr key={idx} className="hover:bg-gray-50/50">
+                    <td className="px-6 py-4 text-sm font-bold text-gray-900">
+                      {isFirstDzo ? act.location.dzongkhag : ""}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">{act.location.gewog}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">{act.location.village}</td>
+                    <td className="px-6 py-4 text-sm text-gray-700 font-medium">{act.activityName}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500 text-center">{act.displayTotal}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500 text-center">{act.totalCapacitySum || '-'} {act.unit}</td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                );
+              })}
+            </tbody>
+          </table>
+          <Pagination currentPage={actPage} totalPages={totalActPages} onPageChange={setActPage} />
         </div>
       </div>
 
-      {/* Beneficiaries Section */}
+      {/* Registered Beneficiaries Table */}
       <div className="space-y-4">
-        <h3 className="text-lg font-bold text-gray-900">Beneficiaries</h3>
+        <h3 className="text-lg font-bold text-gray-900">Registered Beneficiaries</h3>
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50/50 border-b border-gray-100">
+            <table className="w-full text-left min-w-[1200px]">
+              <thead className="bg-gray-50/50">
+                <tr>
                   <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">CID</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">NAME</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">DZONGKHAG</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">GEWOG</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">PROJECT</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">DETAIL</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">Name</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">Dzongkhag</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider text-center">Gender</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">Thram No</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">House No</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">Village</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">Gewog</th>
+
+                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">Year</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">Indirect Beneficiary</th>
+
+                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">Intervention</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider text-center">Nos</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider text-center">Acres</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider text-center">Capacity</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {beneficiariesData.slice(0, 4).map((ben, index) => (
-                  <tr key={index} className="hover:bg-gray-50/50 transition-colors">
+                {currentBens.map((ben) => (
+                  <tr key={ben._id} className="hover:bg-gray-50/50">
                     <td className="px-6 py-4 text-sm font-bold text-gray-900">{ben.cid}</td>
-                    <td className="px-6 py-4 text-sm font-bold text-gray-900">{ben.name}</td>
+                    <td className="px-6 py-4 text-sm text-gray-900 font-semibold">{ben.name}</td>
                     <td className="px-6 py-4 text-sm text-gray-500">{ben.dzongkhag}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{ben.gewog}</td>
-                    <td className="px-6 py-4 text-sm font-bold text-gray-900">{ben.project}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {index === 0 ? 'Built water tank' : index === 3 ? 'provide kitchen utensils' : ben.project}
+                    <td className="px-6 py-4 text-sm text-gray-500 text-center">{ben.gender}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500 text-center">{ben.thramNo}</td>  
+                    <td className="px-6 py-4 text-sm text-gray-500 text-center">{ben.houseNo}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500 text-center">{ben.village}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500 text-center">{ben.gewog}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500 text-center">{ben.year}</td>
+
+                                        
+                    
+                    {/* Indirect Beneficiary [Total (M:X, F:Y)] */}
+                    <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap font-medium">
+                      {Number(ben.indirectBeneficiaries?.male || 0) + Number(ben.indirectBeneficiaries?.female || 0)} 
+                      <span className="text-[10px] text-gray-400 ml-1">
+                        [M:{ben.indirectBeneficiaries?.male || 0}, F:{ben.indirectBeneficiaries?.female || 0}]
+                      </span>
+                    </td>
+
+                    {/* Intervention */}
+                    <td className="px-6 py-4 text-sm text-gray-700">
+                      {ben.keyActivities?.map((act, i) => (
+                        <div key={i} className={act.isTraining ? "text-orange-600 text-xs font-bold" : "text-xs"}>
+                          {act.isTraining ? `[Training] ${act.activityName}` : act.activityName}
+                        </div>
+                      ))}
+                    </td>
+
+                    {/* Nos Column */}
+                    <td className="px-6 py-4 text-sm text-gray-600 text-center">
+                      {ben.keyActivities?.map((act, i) => (
+                        <div key={i}>{act.isTraining ? "1" : (act.unit?.toLowerCase() === 'nos' ? act.specifications?.join(", ") || act.totalQuantity : "-")}</div>
+                      ))}
+                    </td>
+
+                    {/* Acres Column */}
+                    <td className="px-6 py-4 text-sm text-gray-600 text-center">
+                      {ben.keyActivities?.map((act, i) => (
+                        <div key={i}>{!act.isTraining && act.unit?.toLowerCase() === 'acres' ? act.specifications?.join(", ") : "-"}</div>
+                      ))}
+                    </td>
+
+                    {/* Litres Column */}
+                    <td className="px-6 py-4 text-sm text-gray-600 text-center">
+                      {ben.keyActivities?.map((act, i) => (
+                        <div key={i}>{!act.isTraining && act.unit?.toLowerCase() === 'litres' ? act.specifications?.join(", ") : "-"}</div>
+                      ))}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          <Pagination currentPage={benPage} totalPages={totalBenPages} onPageChange={setBenPage} />
         </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex justify-end gap-4 pt-4">
-        <button 
-          onClick={() => navigate(backPath)}
-          className="px-10 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-all font-bold"
-        >
-          Cancel
-        </button>
-        <button className="px-10 py-2.5 bg-[#3498db] text-white rounded-xl hover:bg-blue-600 transition-all shadow-lg shadow-blue-200 font-bold">
-          Update Activities
-        </button>
       </div>
     </div>
   );
 };
+
 
 export default SpecificProjectDetail;

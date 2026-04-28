@@ -104,7 +104,7 @@ const handleSubmit = async (e) => {
       if (userRole === "ProgrammeOfficer") {
         navigate("/po/dashboard"); // Route for Programme Officer
       } else if ( userRole === "FieldOfficer") {
-        navigate("/fo/dashboard");
+        navigate("/dashboard");
       } else if ( userRole === "C&DOfficer") {
         navigate("/cd/dashboard");
       }else {

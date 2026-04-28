@@ -24,7 +24,7 @@ const Navbar = ({ setMobileMenuOpen, userRole = "Field Officer", userName = "Phu
     if (path.startsWith('/projects')) return { title: 'Projects', desc: 'Manage projects' };
     if (path.startsWith('/beneficiaries')) return { title: 'Beneficiaries', desc: 'Beneficiary records & households' };
     if (path.startsWith('/reports')) return { title: 'Report & M&E', desc: 'Recent reports & exports' };
-    if (path.startsWith('/events')) return { title: 'Annual Events', desc: 'Manage annual events' };
+    // if (path.startsWith('/events')) return { title: 'Annual Events', desc: 'Manage annual events' };
     
     // Programme Officer Routes
     if (path.startsWith('/po/dashboard')) return { title: 'Dashboard', desc: 'Overview of all operations' };

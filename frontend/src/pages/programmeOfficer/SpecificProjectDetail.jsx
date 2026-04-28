@@ -200,7 +200,7 @@ const SpecificProjectDetail = () => {
                   <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">Intervention</th>
                   <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider text-center">Nos</th>
                   <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider text-center">Acres</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider text-center">Litres</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider text-center">Capacity</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">

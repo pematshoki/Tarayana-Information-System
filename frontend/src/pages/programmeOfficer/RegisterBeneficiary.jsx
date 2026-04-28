@@ -177,7 +177,11 @@ const handleSubmit = async () => {
             isTraining: false,
             totalQuantity: act.totalQuantity,
             unit: act.unit,
-            specifications: Array.isArray(act.specifications) ? act.specifications : []
+            specifications: Array.isArray(act.specifications) 
+            ? act.specifications
+                .filter(s => s !== "" && s !== null) 
+                .map(s => Number(s))                
+            : []
           };
         })
       };
@@ -421,12 +425,16 @@ const handleSubmit = async () => {
 
                 {!act.isTraining && act.totalQuantity > 0 && (
                   <div className="space-y-3 p-3 bg-white rounded-xl border border-gray-100">
-                      <label className="text-xs font-bold text-gray-500 uppercase">Specifications</label>
+                      <label className="text-xs font-bold text-gray-500 uppercase">Specifications (optional)</label>
+                      <span className="block text-sm sm:text-base text-gray-400 italic leading-relaxed">
+                        Please enter numeric values only. For capacity, use total liters (e.g., 500, 1000). 
+                        For land area, use total acres (e.g., 2, 3.5, 10) based on legal deed measurements.
+                      </span>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {act.specifications.map((spec, sIdx) => (
                           <input 
                             key={sIdx}
-                            required
+                            
                             placeholder={`Enter amount`}
                             className="p-2 border rounded-lg text-sm outline-none focus:border-blue-400 text-black" // Added text-black
                             value={spec}
