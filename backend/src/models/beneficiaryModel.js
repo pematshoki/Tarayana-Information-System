@@ -33,8 +33,15 @@ const beneficiarySchema = new mongoose.Schema({
     unit: { type: String, enum: ['Acres', 'Litres', 'Nos', 'Meters'] },
     specifications: {
     type: [Number],
+    default: [], // Ensures it starts as an empty array rather than null
     validate: {
-      validator: arr => arr.every(n => typeof n === 'number'),
+      validator: function(arr) {
+        // If the array is empty or doesn't exist, it's valid
+        if (!arr || arr.length === 0) return true;
+        
+        // Otherwise, ensure every item is a number
+        return arr.every(n => typeof n === 'number' && !isNaN(n));
+      },
       message: 'Specifications must be numbers'
     }
   },

@@ -68,7 +68,7 @@ exports.getProjectsByFieldOfficer = async (req, res) => {
     const { officerId } = req.params;
     // MongoDB handles finding a value inside an array automatically with this syntax
     const projects = await Project.find({ fieldOfficer: officerId })
-      .populate("programme donor partner fieldOfficer");
+      .populate("programme donor partner fieldOfficer programmeOfficer");
 
     res.status(200).json({ success: true, data: projects });
   } catch (error) {
