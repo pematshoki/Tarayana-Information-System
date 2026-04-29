@@ -8,13 +8,19 @@ const fieldSchema = new mongoose.Schema({
   },
   fieldType: {
     type: String,
-    enum: ["text", "number", "date", "boolean"],
+    enum: ["text", "number", "date", "boolean","array","object"],
     required: true
   },
   required: {
     type: Boolean,
     default: false
-  }
+  },
+   itemFields: [
+    {
+      fieldName: String,
+      fieldType: String
+    }
+  ]
 });
 
 const annualEventSchema = new mongoose.Schema(

@@ -9,33 +9,37 @@ import {  useEffect } from "react";
 const Reports = () => {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
-
-  const [reports, setReports] = useState([
-    {
-      id: 1,
-      title: "Q4 2025 Progress Report",
-      type: "Quarterly",
-      date: "Jan 15, 2026",
-      fileUrl: "/dummy.pdf",
-    },
-    {
-      id: 2,
-      title: "Annual Report 2025",
-      type: "Annual",
-      date: "Jan 15, 2026",
-      fileUrl: "/dummy.pdf",
-    },
-    {
-      id: 3,
-      title: "Q1 2026 Progress Report",
-      type: "Quarterly",
-      date: "Jan 15, 2026",
-      fileUrl: "/dummy.pdf",
-    },
-  ]);
-
+  const [reports, setReports] = useState([]);
   const location = useLocation();
 
+useEffect(() => {
+  fetch("http://localhost:5000/api/report")
+    .then((res) => res.json())
+    .then((data) => {
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data.reports)
+        ? data.reports
+        : [];
+
+      setReports(list);
+    })
+    .catch((err) => {
+      console.error("Fetch error:", err);
+      setReports([]);
+    });
+}, []);
+
+const handleView = (report) => {
+  window.open(`http://localhost:5000${report.fileUrl}`, "_blank");
+};
+
+const handleDownload = (report) => {
+  const link = document.createElement("a");
+  link.href = `http://localhost:5000${report.fileUrl}`;
+  link.download = report.title;
+  link.click();
+};
 useEffect(() => {
   if (location.state?.newReport) {
     setReports((prev) => [location.state.newReport, ...prev]);
@@ -43,19 +47,8 @@ useEffect(() => {
 }, [location.state]);
 
 
-  // 👁 VIEW REPORT
-  const handleView = (report) => {
-    window.open(report.fileUrl, "_blank");
-  };
 
-  // ⬇ DOWNLOAD REPORT
-  const handleDownload = (report) => {
-    const link = document.createElement("a");
-    link.href = report.fileUrl;
-    link.download = report.title;
-    link.click();
-  };
-
+ 
   return (
     <div className="bg-gray-100 min-h-screen">
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
@@ -96,7 +89,7 @@ useEffect(() => {
 
             {reports.map((r) => (
               <div
-                key={r.id}
+                key={r._id}
                 className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 border rounded-xl hover:shadow-md transition"
               >
                 {/* LEFT */}
@@ -110,7 +103,7 @@ useEffect(() => {
                       {r.title}
                     </h3>
                     <p className="text-sm text-gray-500">
-                      {r.type} • {r.date}
+                      {r.type} • {r.year}
                     </p>
                   </div>
                 </div>
@@ -136,3 +129,4 @@ useEffect(() => {
 };
 
 export default Reports;
+

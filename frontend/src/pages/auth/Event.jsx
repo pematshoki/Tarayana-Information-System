@@ -12,6 +12,7 @@ const Event = () => {
   const navigate = useNavigate();
   const location = useLocation();
 const { id } = useParams();
+const [arrayFields, setArrayFields] = useState({});
   const [collapsed, setCollapsed] = useState(false);
   const [event, setEvent] = useState(location.state?.event || null);
 
@@ -81,7 +82,14 @@ useEffect(() => {
 
   fetchEntries();
 }, [id]);
+const handleArrayInit = (field, count) => {
+  const size = Number(count || 0);
 
+  setArrayFields((prev) => ({
+    ...prev,
+    [field]: Array.from({ length: size }, () => ({})),
+  }));
+};
   // CREATE
 const handleSave = async () => {
   const payload = {
@@ -310,6 +318,8 @@ const handleSave = async () => {
           fields={event.fields}
           formData={formData}
           setFormData={setFormData}
+           arrayFields={arrayFields}
+  setArrayFields={setArrayFields}
         />
       )}
 
@@ -322,6 +332,8 @@ const handleSave = async () => {
           fields={event.fields}
           formData={formData}
           setFormData={setFormData}
+           arrayFields={arrayFields}
+  setArrayFields={setArrayFields}
         />
       )}
 
@@ -366,7 +378,8 @@ export default Event;
 // 🔹 REUSABLE MODAL COMPONENT (ADD + EDIT)
 /////////////////////////////////////////////////////////
 
-const Modal = ({ title, onClose, onSave, fields, formData, setFormData }) => {
+const Modal = ({ title, onClose, onSave, fields, formData, setFormData, arrayFields,
+  setArrayFields }) => {
   return (
     <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50 px-4">
       <div className="bg-white w-full max-w-3xl rounded-2xl p-8 shadow-lg relative">
@@ -381,33 +394,146 @@ const Modal = ({ title, onClose, onSave, fields, formData, setFormData }) => {
         <h2 className="text-xl font-semibold mb-6">{title}</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-         {fields.map((f) => (
-  <div key={f.fieldName} className="flex flex-col gap-2">
+   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-    <label className="text-sm font-medium">
-      {f.fieldName}
-      {f.required && <span className="text-red-500 ml-1">*</span>}
-    </label>
+  {fields.map((f) => {
 
-    <input
-      type={
-        f.fieldType === "date"
-          ? "date"
-          : f.fieldType === "number"
-          ? "number"
-          : "text"
-      }
-      value={formData[f.fieldName] || ""}
-      onChange={(e) =>
-        setFormData({
-          ...formData,
-          [f.fieldName]: e.target.value,
-        })
-      }
-      className="border rounded-lg px-3 py-2"
-    />
-  </div>
-))}
+    // 🔥 NORMAL FIELDS (everything except special cases)
+    if (
+      f.fieldName !== "numberOfSeniorCitizensParticipated" &&
+      f.fieldName !== "sponsors"
+    ) {
+      return (
+        <div key={f.fieldName} className="flex flex-col gap-2">
+
+          <label className="text-sm font-medium">
+            {f.fieldName}
+          </label>
+
+          <input
+            type={
+              f.fieldType === "date"
+                ? "date"
+                : f.fieldType === "number"
+                ? "number"
+                : "text"
+            }
+            value={formData[f.fieldName] || ""}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                [f.fieldName]: e.target.value,
+              })
+            }
+            className="border rounded-lg px-3 py-2"
+          />
+        </div>
+      );
+    }
+
+    return null;
+  })}
+
+  {/* ================= STEP 4 & 5 GO BELOW HERE ================= */}
+
+  {/* 🔥 Senior Citizens GRID */}
+  {arrayFields.seniorCitizenParticipants?.length > 0 && (
+    <div className="col-span-2 mt-4">
+      <label className="text-sm font-medium">Senior Citizens</label>
+
+      {arrayFields.seniorCitizenParticipants.map((row, index) => (
+        <div key={index} className="grid grid-cols-2 gap-4 mt-2">
+
+          <input
+            placeholder="CID"
+            className="border rounded-lg px-3 py-2"
+            onChange={(e) => {
+              const updated = [...arrayFields.seniorCitizenParticipants];
+              updated[index].cid = e.target.value;
+
+              setArrayFields({
+                ...arrayFields,
+                seniorCitizenParticipants: updated,
+              });
+            }}
+          />
+
+          <input
+            placeholder="Name"
+            className="border rounded-lg px-3 py-2"
+            onChange={(e) => {
+              const updated = [...arrayFields.seniorCitizenParticipants];
+              updated[index].name = e.target.value;
+
+              setArrayFields({
+                ...arrayFields,
+                seniorCitizenParticipants: updated,
+              });
+            }}
+          />
+        </div>
+      ))}
+    </div>
+  )}
+
+  {/* 🔥 Sponsors REPEATER */}
+  {arrayFields.sponsors && (
+    <div className="col-span-2 mt-6">
+
+      <div className="flex justify-between items-center">
+        <label className="text-sm font-medium">Sponsors</label>
+
+        <button
+          type="button"
+          className="text-blue-600 text-sm"
+          onClick={() => {
+            setArrayFields((prev) => ({
+              ...prev,
+              sponsors: [...(prev.sponsors || []), {}],
+            }));
+          }}
+        >
+          + Add
+        </button>
+      </div>
+
+      {arrayFields.sponsors.map((row, index) => (
+        <div key={index} className="grid grid-cols-2 gap-4 mt-2">
+
+          <input
+            placeholder="Sponsor Name"
+            className="border rounded-lg px-3 py-2"
+            onChange={(e) => {
+              const updated = [...arrayFields.sponsors];
+              updated[index].name = e.target.value;
+
+              setArrayFields({
+                ...arrayFields,
+                sponsors: updated,
+              });
+            }}
+          />
+
+          <input
+            placeholder="Amount"
+            type="number"
+            className="border rounded-lg px-3 py-2"
+            onChange={(e) => {
+              const updated = [...arrayFields.sponsors];
+              updated[index].amount = e.target.value;
+
+              setArrayFields({
+                ...arrayFields,
+                sponsors: updated,
+              });
+            }}
+          />
+        </div>
+      ))}
+    </div>
+  )}
+
+</div>
         </div>
 
         <div className="flex justify-end gap-4 mt-10">

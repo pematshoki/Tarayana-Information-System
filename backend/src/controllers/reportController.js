@@ -2,7 +2,17 @@
 const { buildReportData } = require("../services/reportServices");
 const { generatePDF } = require("../utils/pdfGenerator");
 const { generateExcel } = require("../utils/excelGenerator");
+const Report = require("../models/reportModel");
+const fs = require("fs");
+const path = require("path");
 
+const filename = `report_${Date.now()}.pdf`;
+const filePath = path.join(__dirname, "../public/reports", filename);
+
+exports.getReports = async (req, res) => {
+  const reports = await Report.find().sort({ createdAt: -1 });
+  res.json({ success: true, reports });
+};
 exports.generateReport = async (req, res) => {
   try {
     const {
@@ -99,9 +109,28 @@ const selectedProjectNames = reportData.programmes.flatMap(p =>
     }
 
     if (format === "excel") {
-      return generateExcel(res, reportData);
+      return generateExcel(
+        res, 
+        reportData.programmes,
+        reportYear,
+        reportData.summary,
+          {
+    type,
+    fromDate,
+    toDate,
+    year,
+    programmeNames: selectedProgrammeNames,
+    projectNames: selectedProjectNames,
+    isAllProgrammes: programmes.length === 0,
+    isAllProjects: projects.length === 0});
     }
-
+const savedReport = await Report.create({
+  title: `${type === "annual" ? "Annual" : "Quarterly"} Report ${reportYear}`,
+  type,
+  year: reportYear,
+  fileUrl: `/reports/${filename}`,
+  createdAt: new Date()
+});
     return res.json({
       success: true,
       ...reportData,

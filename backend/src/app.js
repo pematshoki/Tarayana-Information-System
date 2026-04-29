@@ -1,5 +1,5 @@
 // src/app.js
-
+const path = require("path");
 const express = require("express");
 const cors = require("cors");
 
@@ -26,7 +26,7 @@ app.use(express.json());
 
 // Parse URL encoded data
 app.use(express.urlencoded({ extended: true }));
-
+app.use("/reports", express.static(path.join(__dirname, "public/reports")));
 // Routes
 
 
