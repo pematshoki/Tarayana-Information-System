@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "../../components/Sidebar";
 import Navbar from "../../components/Navbar";
 import { useNavigate } from "react-router-dom";
@@ -14,11 +14,99 @@ const [loading, setLoading] = useState(false);
   const [toDate, setToDate] = useState("");
   const [programme, setProgramme] = useState("All Programmes");
   const [format, setFormat] = useState("PDF Document");
-
+  const [programmes, setProgrammes] = useState([]);
+const [projects, setProjects] = useState([]);
+const [openProject, setOpenProject] = useState(false);
+const [selectedProgrammes, setSelectedProgrammes] = useState([]);
+const [selectedProjects, setSelectedProjects] = useState([]);
+const [open, setOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [users, setUsers] = useState([]);
+const [selectedUsers, setSelectedUsers] = useState([]);
+const [openUsers, setOpenUsers] = useState(false);
+useEffect(() => {
+  fetch("http://localhost:5000/api/programmes")
+    .then((res) => res.json())
+    .then((data) => {
+      setProgrammes(data.programmes || []);
+    })
+    .catch((err) => {
+      console.error(err);
+      setProgrammes([]);
+    });
+}, []);
+useEffect(() => {
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/users");
+      const data = await res.json();
 
+      const allUsers = data.users || data.data || data || [];
+
+      const filtered = allUsers.filter((u) => {
+        const roleName =
+          u.roleId?.roleName || u.roleId?.name || u.roleId?.code;
+
+        return (
+          roleName === "ProgrammeOfficer" ||
+          roleName === "FieldOfficer"
+        );
+      });
+
+      setUsers(filtered);
+      console.log(filtered)
+    } catch (err) {
+      console.error(err);
+      setUsers([]);
+    }
+  };
+
+  fetchUsers();
+}, []);
   const years = ["2026", "2025", "2024", "2023"];
+useEffect(() => {
+  const fetchProjects = async () => {
+    try {
+      let allProjects = [];
 
+      // ✅ CASE 1: No programme selected → fetch ALL
+      if (selectedProgrammes.length === 0) {
+        const res = await fetch("http://localhost:5000/api/projects");
+        const data = await res.json();
+
+        allProjects = data.projects || data.data || data;
+      }
+
+      // ✅ CASE 2: One or more programmes → fetch individually
+      else {
+        const requests = selectedProgrammes.map((id) =>
+          fetch(`http://localhost:5000/api/projects/programme/${id}`)
+            .then((res) => res.json())
+        );
+
+        const results = await Promise.all(requests);
+
+        // flatten all responses
+        allProjects = results.flatMap((res) =>
+          res.projects || res.data || res
+        );
+      }
+
+      // ✅ REMOVE DUPLICATES (important)
+      const uniqueProjects = Array.from(
+        new Map(allProjects.map((p) => [p._id, p])).values()
+      );
+
+      setProjects(uniqueProjects);
+    } catch (err) {
+      console.error(err);
+      setProjects([]);
+    }
+  };
+
+  fetchProjects();
+  setSelectedProjects([]);
+}, [selectedProgrammes]);
   // 👉 restrict dates to selected year
   const getMinDate = () => (year ? `${year}-01-01` : "");
   const getMaxDate = () => (year ? `${year}-12-31` : "");
@@ -32,25 +120,20 @@ const [loading, setLoading] = useState(false);
 
     const token = localStorage.getItem("token");
 
-    const payload = {
-      type,
-      year,
-      fromDate: type === "quarterly" ? fromDate : null,
-      toDate: type === "quarterly" ? toDate : null,
+  const payload = {
+  type,
+  year,
+  fromDate: type === "quarterly" ? fromDate : null,
+  toDate: type === "quarterly" ? toDate : null,
 
-      // FIX: backend expects arrays
-      programmes:
-        programme === "All Programmes" ? [] : [programme],
+  programmes: selectedProgrammes,   // ✅ FIXED
 
-      projects: [],
-      officers: [],
-      dzongkhags: [],
+  projects: selectedProjects,       // (you already have this state)
+  dzongkhags: [],
+  officers: selectedUsers,
 
-      // FIX format mapping
-      format: format === "PDF Document"
-        ? "pdf"
-        : "excel",
-    };
+  format: format === "PDF Document" ? "pdf" : "excel",
+};
 
     const res = await fetch(
       "http://localhost:5000/api/report/generate",
@@ -254,15 +337,152 @@ const [loading, setLoading] = useState(false);
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
-              <select
-                className="border p-3 rounded-lg"
-                value={programme}
-                onChange={(e) => setProgramme(e.target.value)}
-              >
-                <option>All Programmes</option>
-                <option>WASH</option>
-                <option>Housing</option>
-              </select>
+             <div className="relative">
+  {/* Trigger */}
+  <div
+    onClick={() => setOpen(!open)}
+    className="border p-3 rounded-lg cursor-pointer bg-white"
+  >
+   {
+  selectedProgrammes.length === 0
+    ? "All Programmes"
+    : programmes
+        .filter(p => selectedProgrammes.includes(p._id))
+        .map(p => p.programmeName)
+        .join(", ")
+}
+  </div>
+
+  {/* Dropdown */}
+  {open && (
+    <div className="absolute z-10 bg-white border rounded-lg mt-2 w-full shadow max-h-60 overflow-y-auto">
+      
+      <label className="flex gap-2 p-2">
+        <input
+          type="checkbox"
+          checked={selectedProgrammes.length === 0}
+          onChange={() => setSelectedProgrammes([])}
+        />
+        All Programmes
+      </label>
+
+      {programmes.map((p) => (
+        <label key={p._id} className="flex gap-2 p-2">
+          <input
+            type="checkbox"
+            checked={selectedProgrammes.includes(p._id)}
+            onChange={() =>
+              setSelectedProgrammes((prev) =>
+                prev.includes(p._id)
+                  ? prev.filter((id) => id !== p._id)
+                  : [...prev, p._id]
+              )
+            }
+          />
+          {p.programmeName}
+        </label>
+      ))}
+    </div>
+  )}
+</div>
+              <div className="relative">
+  <div
+    onClick={() => setOpenProject(!openProject)}
+    className="border p-3 rounded-lg cursor-pointer bg-white"
+  >
+ {
+  selectedProjects.length === 0
+    ? "All Projects"
+    : projects
+        .filter(p => selectedProjects.includes(p._id))
+        .map(p => p.projectName || p.name)
+        .join(", ")
+}
+  </div>
+
+  {openProject && (
+    <div className="absolute z-10 bg-white border rounded-lg mt-2 w-full max-h-60 overflow-y-auto shadow">
+      
+      {/* ALL */}
+      <label className="flex items-center gap-2 p-2 hover:bg-gray-50">
+        <input
+          type="checkbox"
+          checked={selectedProjects.length === 0}
+          onChange={() => setSelectedProjects([])}
+        />
+        All Projects
+      </label>
+
+      {/* PROJECTS */}
+      {Array.isArray(projects) &&
+        projects.map((proj) => (
+          <label key={proj._id} className="flex items-center gap-2 p-2 hover:bg-gray-50">
+            <input
+              type="checkbox"
+              checked={selectedProjects.includes(proj._id)}
+              onChange={() =>
+                setSelectedProjects((prev) =>
+                  prev.includes(proj._id)
+                    ? prev.filter((id) => id !== proj._id)
+                    : [...prev, proj._id]
+                )
+              }
+            />
+            {proj.projectName || proj.name}
+          </label>
+        ))}
+    </div>
+  )}
+</div>
+               <div className="relative">
+  {/* TRIGGER */}
+  <div
+    onClick={() => setOpenUsers(!openUsers)}
+    className="border p-3 rounded-lg cursor-pointer bg-white"
+  >
+    {selectedUsers.length === 0
+      ? "All Officers"
+      : users
+          .filter(u => selectedUsers.includes(u._id))
+          .map(u => u.email)
+          .join(", ")}
+  </div>
+
+  {/* DROPDOWN */}
+  {openUsers && (
+    <div className="absolute z-10 bg-white border rounded-lg mt-2 w-full shadow max-h-60 overflow-y-auto">
+
+      {/* ALL */}
+      <label className="flex items-center gap-2 p-2">
+        <input
+          type="checkbox"
+          checked={selectedUsers.length === 0}
+          onChange={() => setSelectedUsers([])}
+        />
+        All Officers
+      </label>
+
+      {/* USERS */}
+      {Array.isArray(users) &&
+        users.map((u) => (
+          <label key={u._id} className="flex items-center gap-2 p-2">
+            <input
+              type="checkbox"
+              checked={selectedUsers.includes(u._id)}
+              onChange={() =>
+                setSelectedUsers((prev) =>
+                  prev.includes(u._id)
+                    ? prev.filter((id) => id !== u._id)
+                    : [...prev, u._id]
+                )
+              }
+            />
+            {u.email}
+          </label>
+        ))}
+    </div>
+  )}
+</div>
 
               <select
                 className="border p-3 rounded-lg"

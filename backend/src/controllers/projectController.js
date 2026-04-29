@@ -50,6 +50,33 @@ exports.getProjectsByProgramme = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+exports.getProjectsByProgrammeOfficer = async (req, res) => {
+  try {
+    const { officerId } = req.params;
+    const projects = await Project.find({ programmeOfficer: officerId })
+      .populate("programme donor partner fieldOfficer");
+    
+    res.status(200).json({ success: true, data: projects });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// GET projects by Field Officer ID (Check if ID exists in the array)
+exports.getProjectsByFieldOfficer = async (req, res) => {
+  try {
+    const { officerId } = req.params;
+    // MongoDB handles finding a value inside an array automatically with this syntax
+    const projects = await Project.find({ fieldOfficer: officerId })
+      .populate("programme donor partner fieldOfficer");
+
+    res.status(200).json({ success: true, data: projects });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 exports.getProjectView = async (req, res) => {
   try { 
     const { id } = req.params;

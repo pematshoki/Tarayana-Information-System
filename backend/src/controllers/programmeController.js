@@ -1,5 +1,7 @@
 const Programme = require("../models/programmeModel");
 const Project = require("../models/projectModel");
+const Beneficiary = require("../models/beneficiaryModel");
+const mongoose = require("mongoose");
 // CREATE
 exports.createProgramme = async (req, res) => {
   try {
@@ -64,7 +66,81 @@ exports.getProgrammeById = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+exports.getProgrammesWithDetails = async (req, res) => {
+  try {
+    const programmes = await Programme.aggregate([
+      // Step 1: Lookup projects under each programme
+      {
+        $lookup: {
+          from: "projects",
+          localField: "_id",
+          foreignField: "programme",
+          as: "projects",
+        },
+      },
 
+      // Step 2: Lookup beneficiaries inside each project
+      {
+        $lookup: {
+          from: "beneficiaries",
+          let: { projectIds: "$projects._id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $in: ["$projectId", "$$projectIds"],
+                },
+              },
+            },
+          ],
+          as: "allBeneficiaries",
+        },
+      },
+
+      // Step 3: Attach beneficiaries to respective projects
+      {
+        $addFields: {
+          projects: {
+            $map: {
+              input: "$projects",
+              as: "project",
+              in: {
+                $mergeObjects: [
+                  "$$project",
+                  {
+                    beneficiaries: {
+                      $filter: {
+                        input: "$allBeneficiaries",
+                        as: "b",
+                        cond: {
+                          $eq: ["$$b.projectId", "$$project._id"],
+                        },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+
+      // Step 4: Optional cleanup
+      {
+        $project: {
+          allBeneficiaries: 0,
+        },
+      },
+    ]);
+
+    res.json({
+      message: "Programmes with projects and beneficiaries fetched successfully",
+      programmes,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
 // UPDATE
 exports.updateProgramme = async (req, res) => {
   try {
