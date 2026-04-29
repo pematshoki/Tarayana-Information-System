@@ -1,6 +1,6 @@
 
 
-import { useState } from "react";
+import React,{ useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import Navbar from "../../components/Navbar";
@@ -12,7 +12,6 @@ const Event = () => {
   const navigate = useNavigate();
   const location = useLocation();
 const { id } = useParams();
-const [arrayFields, setArrayFields] = useState({});
   const [collapsed, setCollapsed] = useState(false);
   const [event, setEvent] = useState(location.state?.event || null);
 
@@ -82,19 +81,12 @@ useEffect(() => {
 
   fetchEntries();
 }, [id]);
-const handleArrayInit = (field, count) => {
-  const size = Number(count || 0);
 
-  setArrayFields((prev) => ({
-    ...prev,
-    [field]: Array.from({ length: size }, () => ({})),
-  }));
-};
   // CREATE
 const handleSave = async () => {
   const payload = {
     annualEventId: event._id,
-    data: {},
+   data: { ...formData },
   };
 
   event.fields.forEach((f) => {
@@ -126,13 +118,55 @@ const handleSave = async () => {
   setFormData({});
 };
   // EDIT
- const handleEditSave = async () => {
+//  const handleEditSave = async () => {
+//   const entryId = entries[editIndex]._id;
+
+//   const payload = {
+//     data: {},
+//   };
+
+//   event.fields.forEach((f) => {
+//     let value = formData[f.fieldName];
+
+//     if (f.fieldType === "number") value = Number(value);
+//     if (f.fieldType === "boolean") value = value === "true" || value === true;
+
+//     payload.data[f.fieldName] = value;
+//   });
+
+//   const res = await fetch(
+//     `http://localhost:5000/api/annual-event/event/${entryId}`,
+//     {
+//       method: "PUT",
+//       headers: {
+//         "Content-Type": "application/json",
+//         Authorization: `Bearer ${localStorage.getItem("token")}`,
+//       },
+//       body: JSON.stringify(payload),
+//     }
+//   );
+
+//   const result = await res.json();
+
+//   if (!res.ok) return alert(result.message);
+
+//   // ✅ update UI instantly
+//   setEntries((prev) =>
+//     prev.map((e, i) => (i === editIndex ? result.data : e))
+//   );
+
+//   setShowEdit(false);
+//   setFormData({});
+// };
+const handleEditSave = async () => {
   const entryId = entries[editIndex]._id;
 
+  // 1. Start with the existing formData (which contains sponsor_list and citizen_details)
   const payload = {
-    data: {},
+    data: { ...formData }, 
   };
 
+  // 2. Run your formatting loop to ensure numbers and booleans are correct
   event.fields.forEach((f) => {
     let value = formData[f.fieldName];
 
@@ -141,6 +175,14 @@ const handleSave = async () => {
 
     payload.data[f.fieldName] = value;
   });
+
+  // 3. EXPLICITLY ensure the nested arrays are preserved
+  if (formData.sponsor_list) {
+    payload.data.sponsor_list = formData.sponsor_list;
+  }
+  if (formData.citizen_details) {
+    payload.data.citizen_details = formData.citizen_details;
+  }
 
   const res = await fetch(
     `http://localhost:5000/api/annual-event/event/${entryId}`,
@@ -158,7 +200,7 @@ const handleSave = async () => {
 
   if (!res.ok) return alert(result.message);
 
-  // ✅ update UI instantly
+  // Update UI
   setEntries((prev) =>
     prev.map((e, i) => (i === editIndex ? result.data : e))
   );
@@ -240,7 +282,7 @@ const handleSave = async () => {
                 </tr>
               </thead>
 
-              <tbody>
+          <tbody>
   {entries.length === 0 ? (
     <tr>
       <td colSpan="100%" className="text-center p-6 text-gray-400">
@@ -250,56 +292,66 @@ const handleSave = async () => {
   ) : (
     entries.map((item, i) => (
       <tr key={item._id} className="border-t hover:bg-gray-50 transition">
-
         <td className="px-4 py-3 text-center">{i + 1}</td>
 
-        {(event?.fields || []).map((f) => (
-          <td key={f.fieldName} className="px-4 py-3">
-            {item.data?.[f.fieldName] || "-"}
-          </td>
-        ))}
+        {(event?.fields || []).map((f) => {
+          const fieldName = f.fieldName;
+          let displayValue = item.data?.[fieldName] || "-";
 
-    <td className="px-4 py-3">
-  <div className="flex justify-center gap-4">
+          // Check if this specific field is the "Sponsors" field
+          if (fieldName.toLowerCase() === "sponsors") {
+            const sponsors = item.data?.["sponsor_list"];
+            if (Array.isArray(sponsors) && sponsors.length > 0) {
+              // Extract only the 'name' from each sponsor object and join with commas
+              displayValue = sponsors
+                .map((s) => s.name)
+                .filter((name) => name) // Remove empty strings
+                .join(", ");
+            }
+          }
 
-    {/* VIEW */}
-    <Eye
-      size={18}
-      className="text-blue-500 cursor-pointer"
-      onClick={() =>
-        navigate("/event-detail", {
-          state: {
-            event,
-            entry: item,   // ✅ send selected row
-          },
-        })
-      }
-    />
+          return (
+            <td key={fieldName} className="px-4 py-3">
+              {displayValue || "-"}
+            </td>
+          );
+        })}
 
-    {/* EDIT */}
-    <Pencil
-      size={18}
-      className="text-gray-600 cursor-pointer"
-      onClick={() => {
-        setEditIndex(i);
-        setFormData(item.data);   // ✅ FIXED (was entry undefined)
-        setShowEdit(true);
-      }}
-    />
+        <td className="px-4 py-3">
+          <div className="flex justify-center gap-4">
+            {/* VIEW */}
+            <Eye
+              size={18}
+              className="text-blue-500 cursor-pointer"
+              onClick={() =>
+                navigate("/event-detail", {
+                  state: { event, entry: item },
+                })
+              }
+            />
 
-    {/* DELETE */}
-    <Trash2
-      size={18}
-      className="text-red-500 cursor-pointer"
-      onClick={() => {
-        setDeleteIndex(i);
-        setShowDelete(true);
-      }}
-    />
+            {/* EDIT */}
+            <Pencil
+              size={18}
+              className="text-gray-600 cursor-pointer"
+              onClick={() => {
+                setEditIndex(i);
+                setFormData(item.data);
+                setShowEdit(true);
+              }}
+            />
 
-  </div>
-</td>
-
+            {/* DELETE */}
+            <Trash2
+              size={18}
+              className="text-red-500 cursor-pointer"
+              onClick={() => {
+                setDeleteIndex(i);
+                setShowDelete(true);
+              }}
+            />
+          </div>
+        </td>
       </tr>
     ))
   )}
@@ -318,8 +370,6 @@ const handleSave = async () => {
           fields={event.fields}
           formData={formData}
           setFormData={setFormData}
-           arrayFields={arrayFields}
-  setArrayFields={setArrayFields}
         />
       )}
 
@@ -332,8 +382,6 @@ const handleSave = async () => {
           fields={event.fields}
           formData={formData}
           setFormData={setFormData}
-           arrayFields={arrayFields}
-  setArrayFields={setArrayFields}
         />
       )}
 
@@ -378,176 +426,133 @@ export default Event;
 // 🔹 REUSABLE MODAL COMPONENT (ADD + EDIT)
 /////////////////////////////////////////////////////////
 
-const Modal = ({ title, onClose, onSave, fields, formData, setFormData, arrayFields,
-  setArrayFields }) => {
+const Modal = ({ title, onClose, onSave, fields, formData, setFormData }) => {
+  
+  const updateNestedData = (fieldName, index, subField, value) => {
+    const currentArray = [...(formData[fieldName] || [])];
+    if (!currentArray[index]) currentArray[index] = {};
+    currentArray[index][subField] = value;
+    setFormData({ ...formData, [fieldName]: currentArray });
+  };
+
+  const addRow = (fieldName) => {
+    const currentArray = [...(formData[fieldName] || []), { name: "", amount: "" }];
+    setFormData({ ...formData, [fieldName]: currentArray });
+  };
+
   return (
     <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50 px-4">
-      <div className="bg-white w-full max-w-3xl rounded-2xl p-8 shadow-lg relative">
+      <div className="bg-white w-full max-w-5xl rounded-2xl p-8 shadow-xl relative max-h-[90vh] overflow-y-auto">
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-black text-2xl">✕</button>
+        <h2 className="text-xl font-bold mb-8">{title}</h2>
 
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-gray-500"
-        >
-          ✕
-        </button>
+        {/* The items-start class ensures boxes don't stretch vertically if one is taller */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 items-start">
+          {fields.map((f) => {
+            
+            // --- CASE 1: Senior Citizens + Side-by-Side Name/CID ---
+            if (f.fieldName === "No of Senior Citizen Participated") {
+              const count = parseInt(formData[f.fieldName]) || 0;
+              return (
+                <React.Fragment key={f.fieldName}>
+                  {/* The actual Number Input */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-bold text-gray-700">{f.fieldName}</label>
+                    <input
+                      type="number"
+                      value={formData[f.fieldName] || ""}
+                      onChange={(e) => setFormData({ ...formData, [f.fieldName]: e.target.value })}
+                      className="border border-gray-300 rounded-md px-3 py-2 h-11 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
 
-        <h2 className="text-xl font-semibold mb-6">{title}</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-  {fields.map((f) => {
-
-    // 🔥 NORMAL FIELDS (everything except special cases)
-    if (
-      f.fieldName !== "numberOfSeniorCitizensParticipated" &&
-      f.fieldName !== "sponsors"
-    ) {
-      return (
-        <div key={f.fieldName} className="flex flex-col gap-2">
-
-          <label className="text-sm font-medium">
-            {f.fieldName}
-          </label>
-
-          <input
-            type={
-              f.fieldType === "date"
-                ? "date"
-                : f.fieldType === "number"
-                ? "number"
-                : "text"
+                 
+                  {Array.from({ length: count }).map((_, idx) => (
+                    <React.Fragment key={`cit-${idx}`}>
+                      <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-gray-700">Name</label>
+                    
+                         <input
+                          placeholder="CID"
+                          className="border border-gray-300 rounded-md px-3 py-2 h-11 outline-none focus:ring-2 focus:ring-blue-500"
+                          value={formData["citizen_details"]?.[idx]?.cid || ""}
+                          onChange={(e) => updateNestedData("citizen_details", idx, "cid", e.target.value)}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-gray-700">CID</label>
+                        <input
+                          placeholder="Name"
+                          className="border border-gray-300 rounded-md px-3 py-2 h-11 outline-none focus:ring-2 focus:ring-blue-500"
+                          value={formData["citizen_details"]?.[idx]?.name || ""}
+                          onChange={(e) => updateNestedData("citizen_details", idx, "name", e.target.value)}
+                        />
+                      </div>
+                    </React.Fragment>
+                  ))}
+                </React.Fragment>
+              );
             }
-            value={formData[f.fieldName] || ""}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                [f.fieldName]: e.target.value,
-              })
+
+            // --- CASE 2: Sponsors (Row with Nu. prefix) ---
+            if (f.fieldName.toLowerCase() === "sponsors") {
+              const sponsorList = formData["sponsor_list"] || [{ name: "", amount: "" }];
+              return (
+                <div key={f.fieldName} className="flex flex-col gap-2">
+                  <label className="text-sm font-bold text-gray-700">Sponsor's Name with Amount</label>
+                  <div className="space-y-3">
+                    {sponsorList.map((s, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <div className="flex-1 flex border border-gray-300 rounded-md overflow-hidden h-11 focus-within:ring-2 focus-within:ring-blue-500">
+                          <input
+                            placeholder="Enter name"
+                            className="flex-1 px-3 py-2 outline-none border-r border-gray-300"
+                            value={s.name}
+                            onChange={(e) => updateNestedData("sponsor_list", idx, "name", e.target.value)}
+                          />
+                          <div className="bg-white flex items-center px-2 text-gray-400 text-sm italic">Nu.</div>
+                          <input
+                            type="number"
+                            placeholder="0.00"
+                            className="w-24 px-2 py-2 outline-none"
+                            value={s.amount}
+                            onChange={(e) => updateNestedData("sponsor_list", idx, "amount", e.target.value)}
+                          />
+                        </div>
+                        {idx === sponsorList.length - 1 && (
+                          <button type="button" onClick={() => addRow("sponsor_list")} className="text-blue-500 text-2xl font-bold px-1 hover:text-blue-700">
+                            +
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
             }
-            className="border rounded-lg px-3 py-2"
-          />
-        </div>
-      );
-    }
 
-    return null;
-  })}
-
-  {/* ================= STEP 4 & 5 GO BELOW HERE ================= */}
-
-  {/* 🔥 Senior Citizens GRID */}
-  {arrayFields.seniorCitizenParticipants?.length > 0 && (
-    <div className="col-span-2 mt-4">
-      <label className="text-sm font-medium">Senior Citizens</label>
-
-      {arrayFields.seniorCitizenParticipants.map((row, index) => (
-        <div key={index} className="grid grid-cols-2 gap-4 mt-2">
-
-          <input
-            placeholder="CID"
-            className="border rounded-lg px-3 py-2"
-            onChange={(e) => {
-              const updated = [...arrayFields.seniorCitizenParticipants];
-              updated[index].cid = e.target.value;
-
-              setArrayFields({
-                ...arrayFields,
-                seniorCitizenParticipants: updated,
-              });
-            }}
-          />
-
-          <input
-            placeholder="Name"
-            className="border rounded-lg px-3 py-2"
-            onChange={(e) => {
-              const updated = [...arrayFields.seniorCitizenParticipants];
-              updated[index].name = e.target.value;
-
-              setArrayFields({
-                ...arrayFields,
-                seniorCitizenParticipants: updated,
-              });
-            }}
-          />
-        </div>
-      ))}
-    </div>
-  )}
-
-  {/* 🔥 Sponsors REPEATER */}
-  {arrayFields.sponsors && (
-    <div className="col-span-2 mt-6">
-
-      <div className="flex justify-between items-center">
-        <label className="text-sm font-medium">Sponsors</label>
-
-        <button
-          type="button"
-          className="text-blue-600 text-sm"
-          onClick={() => {
-            setArrayFields((prev) => ({
-              ...prev,
-              sponsors: [...(prev.sponsors || []), {}],
-            }));
-          }}
-        >
-          + Add
-        </button>
-      </div>
-
-      {arrayFields.sponsors.map((row, index) => (
-        <div key={index} className="grid grid-cols-2 gap-4 mt-2">
-
-          <input
-            placeholder="Sponsor Name"
-            className="border rounded-lg px-3 py-2"
-            onChange={(e) => {
-              const updated = [...arrayFields.sponsors];
-              updated[index].name = e.target.value;
-
-              setArrayFields({
-                ...arrayFields,
-                sponsors: updated,
-              });
-            }}
-          />
-
-          <input
-            placeholder="Amount"
-            type="number"
-            className="border rounded-lg px-3 py-2"
-            onChange={(e) => {
-              const updated = [...arrayFields.sponsors];
-              updated[index].amount = e.target.value;
-
-              setArrayFields({
-                ...arrayFields,
-                sponsors: updated,
-              });
-            }}
-          />
-        </div>
-      ))}
-    </div>
-  )}
-
-</div>
+            // --- DEFAULT CASE: Standard Grid Fields (Destination, Dates, etc.) ---
+            return (
+              <div key={f.fieldName} className="flex flex-col gap-2">
+                <label className="text-sm font-bold text-gray-700">{f.fieldName}</label>
+                <input
+                  type={f.fieldType === "date" ? "date" : f.fieldType === "number" ? "number" : "text"}
+                  value={formData[f.fieldName] || ""}
+                  onChange={(e) => setFormData({ ...formData, [f.fieldName]: e.target.value })}
+                  placeholder={f.fieldName}
+                  className="border border-gray-300 rounded-md px-3 py-2 h-11 focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+            );
+          })}
         </div>
 
-        <div className="flex justify-end gap-4 mt-10">
-          <button
-            onClick={onClose}
-            className="px-6 py-2 border rounded-lg"
-          >
+        {/* Action Buttons */}
+        <div className="flex justify-end gap-4 mt-12">
+          <button onClick={onClose} className="px-8 py-2.5 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50">
             Cancel
           </button>
-
-          <button
-            onClick={onSave}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg"
-          >
+          <button onClick={onSave} className="px-8 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md">
             Save
           </button>
         </div>

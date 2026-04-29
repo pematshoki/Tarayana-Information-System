@@ -48,12 +48,11 @@ const defaultEvents = [
       { fieldName: "Start Date", fieldType: "date", required: true },
       { fieldName: "End Date", fieldType: "date", required: true },
 
-      { fieldName: "Number Of Senior Citizens Participated", fieldType: "number", required: false },
 
       { fieldName: "Pilgrimage Destination", fieldType: "text", required: true },
 
        {
-      fieldName: "Senior Citizen Participated",
+      fieldName: "No of Senior Citizen Participated",
       fieldType: "array",
       required: false,
       itemFields: [
