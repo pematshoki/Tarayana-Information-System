@@ -1,15 +1,35 @@
-import { useState } from "react";
-import logo from "../../assets/logo.png";
+import { useLocation } from "react-router-dom";
 import {
   LogOut,
   ChevronLeft,
-  Menu,
 } from "lucide-react";
 import { menuConfigs } from "./sidebarConfig";
 import SidebarItem from "./SidebarItem";
+import logo from "../../assets/logo.png";
 
-const Sidebar = ({ role = 'Field Officer', collapsed, setCollapsed, mobileMenuOpen, setMobileMenuOpen }) => {
-  const menuItems = menuConfigs[role] || menuConfigs['Field Officer'];
+const Sidebar = ({ role, collapsed, setCollapsed, mobileMenuOpen, setMobileMenuOpen }) => {
+  const location = useLocation();
+  
+  // Auto-detect role if not provided
+  let effectiveRole = role;
+  if (!effectiveRole) {
+    const path = location.pathname;
+    if (path.startsWith('/admin') || path === '/add-user' || path === '/usersmanagement' || path === '/generatereport' || path === '/reports') {
+      effectiveRole = 'Admin';
+    } else if (path.startsWith('/po')) {
+      effectiveRole = 'Programme Officer';
+    } else if (path.startsWith('/mgmt')) {
+      effectiveRole = 'Management';
+    } else if (path.startsWith('/cd')) {
+      effectiveRole = role || 'CD Officer';
+    } else if (path.startsWith('/mr')) {
+      effectiveRole = role || 'MR Officer';
+    } else {
+      effectiveRole = 'Field Officer';
+    }
+  }
+
+  const menuItems = menuConfigs[effectiveRole] || menuConfigs['Field Officer'];
 
   return (
     <div>

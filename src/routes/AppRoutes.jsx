@@ -42,11 +42,15 @@ import AdminProgramme from '../pages/admin/Programme';
 import AdminProgrammeDetail from '../pages/admin/ProgrammeDetail';
 import AdminProjectDetail from '../pages/admin/ProjectDetail';
 import AdminGenerateReport from '../pages/admin/GenerateReport';
+import AdminReports from '../pages/admin/Reports';
 import AdminBeneficiaries from '../pages/admin/Beneficiaries';
 
 import ManagementDashboard from '../pages/management/Dashboard';
-import ManagementAnalytics from '../pages/management/Analytics';
-import ManagementImpact from '../pages/management/Impact';
+import ManagementProgrammes from '../pages/management/Programmes';
+import ManagementProgrammeDetail from '../pages/management/ProgrammeDetail';
+import ManagementProjectDetail from '../pages/management/ProjectDetail';
+import ManagementReports from '../pages/management/Reports';
+import ManagementGenerateReport from '../pages/management/GenerateReport';
 
 // MR-CD Pages
 import CdDashboard from '../pages/MR-CD/CdDashboard';
@@ -89,6 +93,7 @@ const AppRoutes = () => {
         <Route path="reports" element={<Reports />} />
         <Route path="reports/generate" element={<GenerateReport />} />
         <Route path="events" element={<Events />} />
+
       </Route>
 
       {/* Programme Officer Routes */}
@@ -107,6 +112,7 @@ const AppRoutes = () => {
         <Route path="programmes/add" element={<POAddNewProject />} />
         <Route path="programmes/:type/:id" element={<ProjectDetail />} />
         <Route path="programmes/detail/:id" element={<SpecificProjectDetail />} />
+
       </Route>
 
       {/* Admin Routes */}
@@ -126,12 +132,12 @@ const AppRoutes = () => {
         <Route path="programmes/:id" element={<AdminProgrammeDetail />} />
         <Route path="projects/:id" element={<AdminProjectDetail />} />
         <Route path="beneficiaries" element={<AdminBeneficiaries />} />
+        <Route path="reports" element={<AdminReports />} />
+        <Route path="generate-report" element={<AdminGenerateReport />} />
       </Route>
 
       {/* Direct routes captured from Admin pages navigation */}
       <Route path="/add-user" element={<AdminAddUser />} />
-      <Route path="/usersmanagement" element={<AdminUserManagement />} />
-      <Route path="/generatereport" element={<AdminGenerateReport />} />
 
       {/* Management Routes */}
       <Route path="/mgmt" element={
@@ -141,8 +147,12 @@ const AppRoutes = () => {
       }>
         <Route index element={<Navigate to="/mgmt/dashboard" replace />} />
         <Route path="dashboard" element={<ManagementDashboard />} />
-        <Route path="analytics" element={<ManagementAnalytics />} />
-        <Route path="impact" element={<ManagementImpact />} />
+        <Route path="programmes" element={<ManagementProgrammes />} />
+        <Route path="programmes/:id" element={<ManagementProgrammeDetail />} />
+        <Route path="projects/:id" element={<ManagementProjectDetail />} />
+        <Route path="reports" element={<ManagementReports />} />
+        <Route path="generate-report" element={<ManagementGenerateReport />} />
+        <Route path="annual-events" element={<AdminAnnualEvents />} />
       </Route>
 
       {/* CD Officer Routes */}
@@ -163,8 +173,6 @@ const AppRoutes = () => {
         <Route path="archives/programme/:programmeName" element={<MrCdProgramme />} />
         <Route path="archives/programme/:programmeName/project/:projectName" element={<MrCdProjectDetails />} />
       </Route>
-
-      {/* MR Officer Routes */}
       <Route path="/mr" element={
         <ProtectedRoute>
           <MrCdLayout />

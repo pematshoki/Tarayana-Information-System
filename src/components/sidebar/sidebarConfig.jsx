@@ -19,7 +19,6 @@ export const menuConfigs = {
     { name: "Projects", path: "/projects", icon: <FileText size={20} /> },
     { name: "Beneficiaries", path: "/beneficiaries", icon: <Users size={20} /> },
     { name: "Report & M&E", path: "/reports", icon: <BarChart3 size={20} /> },
-    { name: "Annual Events", path: "/events", icon: <Calendar size={20} /> },
   ],
   'Programme Officer': [
     { name: "Dashboard", path: "/po/dashboard", icon: <LayoutGrid size={20} /> },
@@ -31,16 +30,15 @@ export const menuConfigs = {
     { name: "Dashboard", path: "/admin/dashboard", icon: <LayoutGrid size={20} /> },
     { name: "Programmes", path: "/admin/programmes", icon: <FileText size={20} /> },
     { name: "Beneficiaries", path: "/admin/beneficiaries", icon: <Users size={20} /> },
-    { name: "Report & M&E", path: "/admin/security", icon: <BarChart3 size={20} /> },
+    { name: "Report & M&E", path: "/admin/reports", icon: <BarChart3 size={20} /> },
     { name: "Annual Events", path: "/admin/annual-events", icon: <Calendar size={20} /> },
     { name: "User Management", path: "/admin/users", icon: <UserCog size={20} /> },
     { name: "Setting", path: "/admin/settings", icon: <Settings size={20} /> },
   ],
   'Management': [
-    { name: "Overview", path: "/mgmt/dashboard", icon: <LayoutGrid size={20} /> },
-    { name: "Analytics", path: "/mgmt/analytics", icon: <PieChart size={20} /> },
-    { name: "Strategic Reports", path: "/mgmt/reports", icon: <BarChart3 size={20} /> },
-    { name: "Impact Assessment", path: "/mgmt/impact", icon: <Users size={20} /> },
+    { name: "Dashboard", path: "/mgmt/dashboard", icon: <LayoutGrid size={20} /> },
+    { name: "Programmes", path: "/mgmt/programmes", icon: <FileText size={20} /> },
+    { name: "Report", path: "/mgmt/reports", icon: <BarChart3 size={20} /> },
   ],
   'CD Officer': [
     { name: "Dashboard", path: "/cd/dashboard", icon: <LayoutGrid size={20} /> },
