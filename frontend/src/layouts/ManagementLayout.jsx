@@ -21,7 +21,7 @@ const ManagementLayout = () => {
         "flex-1 flex flex-col transition-all duration-300",
         collapsed ? "lg:ml-[75px]" : "lg:ml-[265px]"
       )}>
-        <Navbar setMobileMenuOpen={setMobileMenuOpen} userRole="Management" />
+        <Navbar setMobileMenuOpen={setMobileMenuOpen} userRole="Management" userName="Pema Tshoki" />
         <main className="flex-1 p-4 lg:p-8">
           <Outlet />
         </main>

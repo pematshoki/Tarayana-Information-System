@@ -37,10 +37,9 @@ export const menuConfigs = {
     { name: "Setting", path: "/admin/settings", icon: <Settings size={20} /> },
   ],
   'Management': [
-    { name: "Overview", path: "/mgmt/dashboard", icon: <LayoutGrid size={20} /> },
-    { name: "Analytics", path: "/mgmt/analytics", icon: <PieChart size={20} /> },
-    { name: "Strategic Reports", path: "/mgmt/reports", icon: <BarChart3 size={20} /> },
-    { name: "Impact Assessment", path: "/mgmt/impact", icon: <Users size={20} /> },
+    { name: "Dashboard", path: "/mgmt/dashboard", icon: <LayoutGrid size={20} /> },
+    { name: "Programmes", path: "/mgmt/programmes", icon: <FileText size={20} /> },
+    { name: "Report", path: "/mgmt/reports", icon: <BarChart3 size={20} /> },
   ],
   'CD Officer': [
     { name: "Dashboard", path: "/cd/dashboard", icon: <LayoutGrid size={20} /> },

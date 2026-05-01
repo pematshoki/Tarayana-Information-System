@@ -52,7 +52,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
   );
 };
 
-const MrCdProjectDetails = () => {
+const ProjectDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const location = useLocation();
@@ -268,4 +268,4 @@ const MrCdProjectDetails = () => {
   );
 };
 
-export default MrCdProjectDetails;
+export default ProjectDetail;

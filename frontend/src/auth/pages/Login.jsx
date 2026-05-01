@@ -105,8 +105,10 @@ const handleSubmit = async (e) => {
         navigate("/po/dashboard"); // Route for Programme Officer
       } else if ( userRole === "FieldOfficer") {
         navigate("/dashboard");
-      } else if ( userRole === "C&DOfficer") {
+      } else if ( userRole === "C&DOfficer" || userRole === "M&EOfficer") {
         navigate("/cd/dashboard");
+      }  else if ( userRole === "Management") {
+        navigate("/mgmt/dashboard");
       }else {
         navigate("/dashboard");    // Default fallback
       }

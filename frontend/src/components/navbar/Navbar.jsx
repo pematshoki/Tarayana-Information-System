@@ -46,9 +46,15 @@ const Navbar = ({ setMobileMenuOpen, userRole = "Field Officer", userName = "Phu
     // MR Routes
     if (path.startsWith('/mr')) return { title: 'MR Dashboard', desc: 'Monitoring & Reporting' };
     
+
+
     // Management Routes
-    if (path.startsWith('/mgmt')) return { title: 'Management', desc: 'Strategic Overview' };
+    if (path.startsWith('/mgmt/dashboard')) return { title: 'Management', desc: 'Strategic Overview' };
+    if (path.startsWith('/mgmt/programmes')) return { title: 'Management', desc: 'Overview of all programmes & projects' };
+    if (path.startsWith('/mgmt/reports')) return { title: 'Management', desc: 'Recent reports & exports' };
     
+
+
     // Viewer Routes
     if (path.startsWith('/viewer')) return { title: 'Data Viewer', desc: 'Read-only access' };
     

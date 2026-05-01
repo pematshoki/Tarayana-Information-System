@@ -47,8 +47,11 @@ import AdminGenerateReport from '../pages/admin/GenerateReport';
 import AdminBeneficiaries from '../pages/admin/Beneficiaries';
 
 import ManagementDashboard from '../pages/management/Dashboard';
-import ManagementAnalytics from '../pages/management/Analytics';
-import ManagementImpact from '../pages/management/Impact';
+import ManagementProgrammes from '../pages/management/Programmes';
+import ManagementProgrammeDetail from '../pages/management/ProgrammeDetail';
+import ManagementProjectDetail from '../pages/management/ProjectDetail';
+import ManagementReports from '../pages/management/Reports';
+import ManagementGenerateReport from '../pages/management/GenerateReport';
 
 // MR-CD Pages
 import CdDashboard from '../pages/MR-CD/CdDashboard';
@@ -144,8 +147,12 @@ const AppRoutes = () => {
       }>
         <Route index element={<Navigate to="/mgmt/dashboard" replace />} />
         <Route path="dashboard" element={<ManagementDashboard />} />
-        <Route path="analytics" element={<ManagementAnalytics />} />
-        <Route path="impact" element={<ManagementImpact />} />
+        <Route path="programmes" element={<ManagementProgrammes />} />
+        <Route path="programmes/:programmeName" element={<ManagementProgrammeDetail />} />
+        <Route path="projects/:id" element={<ManagementProjectDetail />} />
+        <Route path="reports" element={<ManagementReports />} />
+        <Route path="generate-report" element={<ManagementGenerateReport />} />
+        <Route path="annual-events" element={<AdminAnnualEvents />} />
       </Route>
 
       {/* CD Officer Routes */}
