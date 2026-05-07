@@ -2,14 +2,17 @@ const fs = require("fs");
 const path = require("path");
 const PDFDocument = require("pdfkit");
 const Report = require("../models/reportModel");
-
+const getLabel = (list, isAll) => {
+  if (isAll || !list || list.length === 0) return "All";
+  return list.filter(Boolean).join(", ");
+};
 // Ensure these paths are correct for your local setup
 const logoPath = path.join(__dirname, "../public/logo.png");
 const dzongkhaPath = path.join(__dirname, "../public/t.png");
 
 exports.generatePDF = async (
   res,
-  programmes = [],
+groups = [],
   year,
   summary = {},
   meta = {}
@@ -71,47 +74,33 @@ exports.generatePDF = async (
   doc.moveDown(2);
 
   // =========================
-  // SUBTITLE (UNCHANGED LOGIC)
-  // =========================
-  let subtitle = "";
+  // SUBTITLE (CLEANED UP)
+// =========================
+// SUBTITLE (CLEANED UP)
+// =========================
 
-  if (meta.type === "quarterly" && meta.fromDate && meta.toDate) {
-    subtitle += `Period: ${meta.fromDate} to ${meta.toDate}`;
-  } else if (meta.type === "annual") {
-    subtitle += `Year: ${meta.year}`;
-  }
+let line1 = (meta.type === "quarterly") 
+  ? `Period: ${meta.fromDate} to ${meta.toDate}` 
+  : `Year: ${year}`;
 
-  if (meta.isAllProgrammes && meta.isAllProjects) {
-    subtitle += ` | All Programmes | All Projects`;
-  } else {
-    const progNames = (meta.programmeNames || []).length
-      ? meta.programmeNames.slice(0, 3).join(", ")
-      : "All";
+const progLabel = getLabel(meta.programmeNames, meta.isAllProgrammes);
+const projLabel = getLabel(meta.projectNames, meta.isAllProjects);
+const offLabel = getLabel(meta.officerNames, meta.isAllOfficers);
+const dzLabel = getLabel(meta.dzongkhagNames, meta.isAllDzongkhags);
 
-    const progMore = meta.programmeNames?.length > 3
-      ? ` +${meta.programmeNames.length - 3} more`
-      : "";
+line1 += ` | Programmes: ${progLabel} | Projects: ${projLabel}`;
+const line2 = `Officers: ${offLabel}`;
+const line3 = `Dzongkhags: ${dzLabel}`;
 
-    const projNames = (meta.projectNames || []).length
-      ? meta.projectNames.slice(0, 3).join(", ")
-      : "All";
+// ONLY CALL THIS ONCE
+doc.fontSize(8.5).font("Helvetica-Oblique").fillColor("#444444");
+doc.text(line1, { align: "center" });
+doc.text(line2, { align: "center" });
+doc.text(line3, { align: "center" });
 
-    const projMore = meta.projectNames?.length > 3
-      ? ` +${meta.projectNames.length - 3} more`
-      : "";
 
-    subtitle += ` | Programmes: ${progNames}${progMore} | Projects: ${projNames}${projMore}`;
-  }
 
-  doc.moveDown(0.5);
-  doc
-    .fontSize(10)
-    .font("Helvetica-Oblique")
-    .fillColor("#0d0606")
-    .text(subtitle, { align: "center" });
-
-  doc.moveDown(1.5);
-
+doc.moveDown(1.5);
   // =========================
   // STATS (UNCHANGED)
   // =========================
@@ -121,7 +110,7 @@ exports.generatePDF = async (
   const spacing = 10;
 
   const dzSet = new Set();
-  programmes.forEach((prog) => {
+ groups.forEach((prog) => {
     (prog.projects || []).forEach((proj) => {
       if (proj.dzongkhag) dzSet.add(proj.dzongkhag);
     });
@@ -176,115 +165,148 @@ exports.generatePDF = async (
   // =========================
   // BODY (UNCHANGED)
   // =========================
-  (programmes || []).forEach((programme, pIndex) => {
-    if (pIndex === 0) {
-      doc.y = startY + cardHeight + 40;
-    } else if (doc.y > 600) {
-      doc.addPage();
-      doc.y = 50;
-    }
+  
+  const groupLabelPrefix = {
+    officer: "Officer",
+    dzongkhag: "Dzongkhag",
+    programme: "Programme"
+  }[meta.groupingMode || "programme"];
 
-    (programme.projects || []).forEach((project) => {
-      if (doc.y > 650) {
-        doc.addPage();
-        doc.y = 50;
-      }
+  groups.forEach((group) => {
+    if (doc.y > 600) doc.addPage();
 
-      let sectionY = doc.y;
+    doc.moveDown(2);
+    doc
+      .fillColor("#2c3e50")
+      .fontSize(12)
+      .font("Helvetica-Bold")
+      .text(`${groupLabelPrefix}: ${group.groupTitle}`, 40);
 
-      doc
-        .fillColor("#2c3e50")
-        .fontSize(11)
-        .font("Helvetica-Bold")
-        .text(`Programme: ${programme.programmeName}`, 40, sectionY);
+    (group.projects || []).forEach((project) => {
+      if (doc.y > 650) doc.addPage();
 
-      sectionY += 15;
-
+      doc.moveDown(1);
       doc
         .fillColor("#16a085")
-        .fontSize(10)
+        .fontSize(11)
         .font("Helvetica-Bold")
-        .text(`Project: ${project.projectName}`, 40, sectionY);
+        .text(`Project: ${project.projectName}`, 40);
 
-      sectionY += 20;
+      if (project.projectActivities && project.projectActivities.length > 0) {
+        project.projectActivities.forEach((act) => {
+          doc
+            .fillColor("#333")
+            .fontSize(9)
+            .font("Helvetica")
+            .text(`• ${act.name}: ${act.total} ${act.unit}`, 50);
+        });
+      } else {
+        doc
+          .fillColor("#7f8c8d")
+          .fontSize(9)
+          .font("Helvetica-Oblique")
+          .text("• No activities recorded", 50);
+      }
 
+      // --- Beneficiaries Table ---
+      doc.moveDown(1.2); 
+      
       doc
         .fillColor("#333333")
         .fontSize(10)
         .font("Helvetica-Bold")
-        .text("Beneficiaries", 40, sectionY);
+        .text("Beneficiaries", 40);
 
-      let tableTop = sectionY + 18;
+      doc.moveDown(0.5);
+      
+      let tableTop = doc.y;
 
       if (!project.beneficiaries || project.beneficiaries.length === 0) {
         doc
           .fillColor("#7f8c8d")
           .fontSize(9)
           .font("Helvetica-Oblique")
-          .text("• No beneficiaries registered", 40, tableTop);
-
-        doc.y = tableTop + 30;
-        return;
+          .text("• No beneficiaries registered", 50);
+        return; 
       }
 
+      // 1. Updated Column X-positions to fit "Activities"
       const colX = {
         cid: 45,
-        name: 110,
-        gender: 240,
-        dz: 300,
-        village: 380,
-        indirect: 480,
+        name: 100,
+        gender: 190,
+        dz: 230,
+        village: 300,
+        activities: 370, // New Column
+        indirect: 510,
       };
 
+      // Header Background
       doc
-        .rect(40, tableTop - 4, 520, 16)
+        .rect(40, tableTop - 4, 525, 18)
         .fillColor("#f2f4f4")
         .fill();
 
-      doc.fillColor("#2d3436").fontSize(8.5).font("Helvetica-Bold");
+      doc.fillColor("#2d3436").fontSize(8).font("Helvetica-Bold");
 
       doc.text("CID", colX.cid, tableTop);
       doc.text("Name", colX.name, tableTop);
-      doc.text("Gender", colX.gender, tableTop);
+      doc.text("Gen", colX.gender, tableTop);
       doc.text("Dzongkhag", colX.dz, tableTop);
       doc.text("Village", colX.village, tableTop);
-      doc.text("Indirect", colX.indirect, tableTop);
+      doc.text("Activities (Qty)", colX.activities, tableTop); // New Header
+      doc.text("Indir.", colX.indirect, tableTop);
 
-      let rowY = tableTop + 15;
+      let rowY = tableTop + 18;
 
       project.beneficiaries.forEach((b, index) => {
-        if (rowY > 750) {
+        // Prepare activity string for this specific beneficiary
+        const activityStrings = (b.keyActivities || [])
+          .map(a => `${a.activityName} (${a.totalQuantity})`)
+          .join(", ");
+
+        // Calculate height needed for this row (in case activities wrap)
+        const activityWidth = 135;
+        const textHeight = doc.heightOfString(activityStrings || "-", { width: activityWidth });
+        const rowHeight = Math.max(textHeight + 10, 20); // Minimum height of 20
+
+        // Page break logic based on dynamic row height
+        if (rowY + rowHeight > 750) {
           doc.addPage();
           rowY = 50;
         }
 
+        // Zebra Striping
         if (index % 2 === 0) {
           doc
-            .rect(40, rowY - 3, 520, 14)
+            .rect(40, rowY - 3, 525, rowHeight)
             .fillColor("#fdfdfd")
             .fill();
         }
 
-        doc.fillColor("#2d3436").font("Helvetica").fontSize(8);
+        doc.fillColor("#2d3436").font("Helvetica").fontSize(7.5);
 
         const indirect =
           (b.indirectBeneficiaries?.male || 0) +
           (b.indirectBeneficiaries?.female || 0);
 
         doc.text(b.cid || "-", colX.cid, rowY);
-        doc.text(b.name || "-", colX.name, rowY, { width: 120 });
+        doc.text(b.name || "-", colX.name, rowY, { width: 85 });
         doc.text(b.gender || "-", colX.gender, rowY);
-        doc.text(b.dzongkhag || "-", colX.dz, rowY);
-        doc.text(b.village || "-", colX.village, rowY);
+        doc.text(b.dzongkhag || "-", colX.dz, rowY, { width: 65 });
+        doc.text(b.village || "-", colX.village, rowY, { width: 65 });
+        
+        // The wrapped Activities column
+        doc.text(activityStrings || "-", colX.activities, rowY, { width: activityWidth });
+        
         doc.text(indirect.toString(), colX.indirect, rowY);
 
-        rowY += 15;
+        rowY += rowHeight;
       });
 
-      doc.y = rowY + 20;
+      doc.y = rowY + 10;
     });
   });
-
   // =========================
   // FINALIZE (FIXED)
   // =========================

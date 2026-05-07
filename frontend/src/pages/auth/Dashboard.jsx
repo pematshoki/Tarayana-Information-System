@@ -10,6 +10,31 @@ const [beneficiariesCount, setBeneficiariesCount] = useState(0);
 const [ProgrammeCount, setProgrammeCount] = useState(0);
 const [ProjectCount, setProjectCount] = useState(0);
 const [dzongkhagCount, setDzongkhagCount] = useState(0);
+const [activities, setActivities] = useState([]);
+
+useEffect(() => {
+  const fetchActivities = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("http://localhost:5000/api/auth/recent-activity", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setActivities(data);
+      }
+    } catch (err) {
+      console.error("Error fetching activity:", err);
+    }
+  };
+
+  fetchActivities();
+  // Optional: Poll every 60 seconds
+  const interval = setInterval(fetchActivities, 60000);
+  return () => clearInterval(interval);
+}, []);
 useEffect(() => {
   const fetchBeneficiaries = async () => {
     try {
@@ -179,33 +204,45 @@ setDzongkhagCount(uniqueDzongkhags.size);
               </div>
             </div>
 
-            {/* Recent Activity */}
-            <div className="bg-white rounded-xl shadow p-5">
-              <h3 className="font-semibold text-gray-700 mb-4">
-                Recent Activity
-              </h3>
+         {/* Recent Activity */}
+<div className="bg-white rounded-xl shadow p-5">
+  <h3 className="font-semibold text-gray-700 mb-4">
+    Recent Activity
+  </h3>
 
-              <div className="space-y-4">
-                {[
-                  "New programme 'Advocacy & Network' created",
-                  "New project 'WASH Installation' created",
-                  "Quarterly report Q1 2026 generated",
-                  "New beneficiary registered (CID: 11001000001)",
-                ].map((item, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <div className="bg-blue-100 text-blue-600 p-2 rounded-lg">
-                      <Users size={16} />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-700">{item}</p>
-                      <span className="text-xs text-gray-400">
-                        Mar {14 - i}, 2026
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+  <div className="space-y-4 max-h-[400px] overflow-y-auto">
+    {activities.length > 0 ? (
+      activities.map((log) => (
+        <div key={log._id} className="flex items-start gap-3 border-b border-gray-50 pb-3 last:border-0">
+          <div className="bg-blue-100 text-blue-600 p-2 rounded-lg">
+            {/* Logic to show different icons based on entity */}
+            {log.entity === 'beneficiaries' ? <Users size={16} /> : <FileText size={16} />}
+          </div>
+          <div className="flex-1">
+            <p className="text-sm text-gray-700">
+              <span className="font-bold text-gray-900">
+                {log.user?.name || "System"}
+              </span>{" "}
+              {log.details}
+            </p>
+            <span className="text-xs text-gray-400">
+              {new Date(log.timestamp).toLocaleString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </span>
+          </div>
+        </div>
+      ))
+    ) : (
+      <div className="text-center py-10 text-gray-400 text-sm">
+        No recent activity recorded yet.
+      </div>
+    )}
+  </div>
+</div>
           </div>
 
           {/* BOTTOM GRAPHS */}

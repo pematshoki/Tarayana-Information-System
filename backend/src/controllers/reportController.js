@@ -70,59 +70,58 @@ end.setHours(23, 59, 59, 999);
     // =========================
     // BUILD REPORT DATA
     // =========================
-    const reportData = await buildReportData({
-      dateFilter,
-      programmes,
-      projects,
-      officers,
-      dzongkhags,
-      include: safeInclude,
-    });
+const { summary, groups, groupingMode, meta: serviceMeta } = await buildReportData({
+  dateFilter,
+  programmes,
+  projects,
+  officers,
+  dzongkhags,
+  include: safeInclude
+});
 
     const reportYear = year || new Date().getFullYear();
+    // =========================
+    // PREPARE META FOR GENERATORS
+    // =========================
+    const finalMeta = {
+      type,
+      fromDate,
+      toDate,
+      year: reportYear,
+   
+      groupingMode: groupingMode, 
+  isAllProgrammes: !programmes || programmes.length === 0,
+  isAllProjects: !projects || projects.length === 0,
+  isAllOfficers: !officers || officers.length === 0,
+  isAllDzongkhags: !dzongkhags || dzongkhags.length === 0,
 
+  // Use the names found by the service
+  programmeNames: groups.map(g => g.groupTitle), 
+  projectNames: groups.flatMap(g => (g.projects || []).map(p => p.projectName)),
+  officerNames: serviceMeta.officerNames || [], 
+  dzongkhagNames: serviceMeta.dzongkhagNames || [],
+    };
     // =========================
     // OUTPUT
     // =========================
-    const selectedProgrammeNames = reportData.programmes.map(p => p.programmeName);
-
-const selectedProjectNames = reportData.programmes.flatMap(p =>
-  (p.projects || []).map(pr => pr.projectName)
-);
-    if (format === "pdf") {
+ if (format === "pdf") {
       return generatePDF(
         res,
-        reportData.programmes,
+        groups,
         reportYear,
-        reportData.summary,
-          {
-    type,
-    fromDate,
-    toDate,
-    year,
-    programmeNames: selectedProgrammeNames,
-    projectNames: selectedProjectNames,
-    isAllProgrammes: programmes.length === 0,
-    isAllProjects: projects.length === 0
-  }
+        summary,
+        finalMeta // Now contains the officer and dzongkhag names
       );
     }
 
     if (format === "excel") {
       return generateExcel(
         res, 
-        reportData.programmes,
+        reportDataProgrammes,
         reportYear,
-        reportData.summary,
-          {
-    type,
-    fromDate,
-    toDate,
-    year,
-    programmeNames: selectedProgrammeNames,
-    projectNames: selectedProjectNames,
-    isAllProgrammes: programmes.length === 0,
-    isAllProjects: projects.length === 0});
+        summary,
+        finalMeta
+      );
     }
 const savedReport = await Report.create({
   title: `${type === "annual" ? "Annual" : "Quarterly"} Report ${reportYear}`,

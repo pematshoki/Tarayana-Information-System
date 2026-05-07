@@ -13,6 +13,7 @@ const projectRoutes = require("./routes/projectRoutes")
 const beneficiaryRoutes = require("./routes/beneficiaryRoutes");
 const reportRoutes = require("./routes/reportRoutes")
 
+const activityMiddleware = require("./middleware/activityLogger");
 const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
@@ -24,6 +25,7 @@ app.use(cors());
 // Parse JSON request body
 app.use(express.json());
 
+app.use(activityMiddleware);
 // Parse URL encoded data
 app.use(express.urlencoded({ extended: true }));
 app.use("/reports", express.static(path.join(__dirname, "public/reports")));

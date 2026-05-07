@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-
+const ActivityLog = require("../models/ActivityLog")
 const authController = require("../controllers/authController");
 const { isAdmin } = require("../middleware/isAdmin");
 
@@ -15,5 +15,25 @@ router.get("/user/:id", authController.getUserById);
 router.get("/users/count", authController.getUserStats);
 router.delete("/user/:id",isAdmin, authController.deleteUser);
 
+router.get('/recent-activity', async (req, res) => {
+  try {
+    // 1. Check if the model exists and find logs
+    const logs = await ActivityLog.find()
+      .populate('user', 'name email') // This pulls name/email from the User collection
+      .sort({ timestamp: -1 })
+      .limit(10)
+      .lean(); // .lean() makes the query faster and easier to handle
+
+    // 2. Return an empty array instead of an error if no logs exist
+    res.status(200).json(logs || []);
+    
+  } catch (err) {
+    console.error("DETAILED LOG ERROR:", err); // This shows the REAL error in your terminal
+    res.status(500).json({ 
+      error: "Could not fetch logs", 
+      message: err.message 
+    });
+  }
+});
 
 module.exports = router;

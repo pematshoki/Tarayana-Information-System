@@ -67,45 +67,41 @@ useEffect(() => {
 useEffect(() => {
   const fetchProjects = async () => {
     try {
+      setLoading(true);
       let allProjects = [];
 
-      // ✅ CASE 1: No programme selected → fetch ALL
+      // If "All Programmes" (selectedProgrammes is empty)
       if (selectedProgrammes.length === 0) {
         const res = await fetch("http://localhost:5000/api/projects");
         const data = await res.json();
-
-        allProjects = data.projects || data.data || data;
-      }
-
-      // ✅ CASE 2: One or more programmes → fetch individually
+        allProjects = data.projects || data.data || data || [];
+      } 
+      // If specific programmes are selected
       else {
         const requests = selectedProgrammes.map((id) =>
-          fetch(`http://localhost:5000/api/projects/programme/${id}`)
-            .then((res) => res.json())
+          fetch(`http://localhost:5000/api/projects/programme/${id}`).then((res) => res.json())
         );
-
         const results = await Promise.all(requests);
-
-        // flatten all responses
-        allProjects = results.flatMap((res) =>
-          res.projects || res.data || res
-        );
+        allProjects = results.flatMap((res) => res.projects || res.data || res || []);
       }
 
-      // ✅ REMOVE DUPLICATES (important)
+      // Unique projects by ID
       const uniqueProjects = Array.from(
         new Map(allProjects.map((p) => [p._id, p])).values()
       );
 
       setProjects(uniqueProjects);
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching projects:", err);
       setProjects([]);
+    } finally {
+      setLoading(false);
     }
   };
 
   fetchProjects();
-  setSelectedProjects([]);
+  // We reset project selection so we don't have dangling IDs from other programmes
+  setSelectedProjects([]); 
 }, [selectedProgrammes]);
   // 👉 restrict dates to selected year
   const getMinDate = () => (year ? `${year}-01-01` : "");
@@ -385,38 +381,40 @@ useEffect(() => {
     </div>
   )}
 </div>
-              <div className="relative">
+        <div className="relative">
+  {/* Trigger */}
   <div
     onClick={() => setOpenProject(!openProject)}
     className="border p-3 rounded-lg cursor-pointer bg-white"
   >
- {
-  selectedProjects.length === 0
-    ? "All Projects"
-    : projects
-        .filter(p => selectedProjects.includes(p._id))
-        .map(p => p.projectName || p.name)
-        .join(", ")
-}
+    {selectedProjects.length === 0
+      ? selectedProgrammes.length === 0 
+        ? "All Projects (Global)" 
+        : "All Projects (Selected Programmes)"
+      : projects
+          .filter((p) => selectedProjects.includes(p._id))
+          .map((p) => p.projectName || p.name)
+          .join(", ")}
   </div>
 
+  {/* Dropdown */}
   {openProject && (
     <div className="absolute z-10 bg-white border rounded-lg mt-2 w-full max-h-60 overflow-y-auto shadow">
       
-      {/* ALL */}
-      <label className="flex items-center gap-2 p-2 hover:bg-gray-50">
+      {/* "All" Label changes based on programme context */}
+      <label className="flex items-center gap-2 p-2 hover:bg-gray-50 font-medium border-b cursor-pointer">
         <input
           type="checkbox"
           checked={selectedProjects.length === 0}
           onChange={() => setSelectedProjects([])}
         />
-        All Projects
+        {selectedProgrammes.length === 0 ? "All Projects" : "All Projects in Selected Programmes"}
       </label>
 
-      {/* PROJECTS */}
-      {Array.isArray(projects) &&
+      {/* List of projects (either everything or programme-specific) */}
+      {projects.length > 0 ? (
         projects.map((proj) => (
-          <label key={proj._id} className="flex items-center gap-2 p-2 hover:bg-gray-50">
+          <label key={proj._id} className="flex items-center gap-2 p-2 hover:bg-gray-50 cursor-pointer">
             <input
               type="checkbox"
               checked={selectedProjects.includes(proj._id)}
@@ -428,9 +426,12 @@ useEffect(() => {
                 )
               }
             />
-            {proj.projectName || proj.name}
+            <span className="text-sm">{proj.projectName || proj.name}</span>
           </label>
-        ))}
+        ))
+      ) : (
+        <div className="p-3 text-sm text-gray-400 text-center">No projects found</div>
+      )}
     </div>
   )}
 </div>
