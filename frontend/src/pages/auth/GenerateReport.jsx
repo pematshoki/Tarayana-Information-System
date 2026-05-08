@@ -24,6 +24,18 @@ const [open, setOpen] = useState(false);
   const [users, setUsers] = useState([]);
 const [selectedUsers, setSelectedUsers] = useState([]);
 const [openUsers, setOpenUsers] = useState(false);
+
+// Add this outside or inside the component
+const BHUTAN_DZONGKHAGS = [
+  "Bumthang", "Chukha", "Dagana", "Gasa", "Haa", 
+  "Lhuentse", "Mongar", "Paro", "Pema Gatshel", "Punakha", 
+  "Samdrup Jongkhar", "Samtse", "Sarpang", "Thimphu", "Trashigang", 
+  "Trashi Yangtse", "Trongsa", "Tsirang", "Wangdue Phodrang", "Zhemgang"
+];
+
+// Inside the GenerateReport component, add these states:
+const [selectedDzongkhags, setSelectedDzongkhags] = useState([]);
+const [openDzongkhags, setOpenDzongkhags] = useState(false);
 useEffect(() => {
   fetch("http://localhost:5000/api/programmes")
     .then((res) => res.json())
@@ -125,7 +137,7 @@ useEffect(() => {
   programmes: selectedProgrammes,   // ✅ FIXED
 
   projects: selectedProjects,       // (you already have this state)
-  dzongkhags: [],
+  dzongkhags: selectedDzongkhags,
   officers: selectedUsers,
 
   format: format === "PDF Document" ? "pdf" : "excel",
@@ -482,7 +494,52 @@ useEffect(() => {
           </label>
         ))}
     </div>
+    
   )}
+  <div className="relative">
+  {/* TRIGGER */}
+  <div
+    onClick={() => setOpenDzongkhags(!openDzongkhags)}
+    className="border p-3 rounded-lg cursor-pointer bg-white"
+  >
+    {selectedDzongkhags.length === 0
+      ? "All Dzongkhags"
+      : selectedDzongkhags.join(", ")}
+  </div>
+
+  {/* DROPDOWN */}
+  {openDzongkhags && (
+    <div className="absolute z-20 bg-white border rounded-lg mt-2 w-full shadow max-h-60 overflow-y-auto">
+      {/* ALL SELECT */}
+      <label className="flex items-center gap-2 p-2 hover:bg-gray-50 border-b cursor-pointer font-medium">
+        <input
+          type="checkbox"
+          checked={selectedDzongkhags.length === 0}
+          onChange={() => setSelectedDzongkhags([])}
+        />
+        All Dzongkhags
+      </label>
+
+      {/* LIST */}
+      {BHUTAN_DZONGKHAGS.map((dz) => (
+        <label key={dz} className="flex items-center gap-2 p-2 hover:bg-gray-50 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={selectedDzongkhags.includes(dz)}
+            onChange={() =>
+              setSelectedDzongkhags((prev) =>
+                prev.includes(dz)
+                  ? prev.filter((item) => item !== dz)
+                  : [...prev, dz]
+              )
+            }
+          />
+          <span className="text-sm">{dz}</span>
+        </label>
+      ))}
+    </div>
+  )}
+</div>
 </div>
 
               <select

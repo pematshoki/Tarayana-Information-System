@@ -75,9 +75,7 @@ groups = [],
 
   // =========================
   // SUBTITLE (CLEANED UP)
-// =========================
-// SUBTITLE (CLEANED UP)
-// =========================
+
 
 let line1 = (meta.type === "quarterly") 
   ? `Period: ${meta.fromDate} to ${meta.toDate}` 
@@ -104,10 +102,9 @@ doc.moveDown(1.5);
   // =========================
   // STATS (UNCHANGED)
   // =========================
-  const cardWidth = 125;
-  const cardHeight = 65;
+
   const startY = doc.y;
-  const spacing = 10;
+
 
   const dzSet = new Set();
  groups.forEach((prog) => {
@@ -116,49 +113,53 @@ doc.moveDown(1.5);
     });
   });
 
-  const stats = [
-    {
-      label: "Beneficiaries",
-      value: summary?.totalBeneficiaries || 0,
-      color: "#3498db",
-    },
-    {
-      label: "Projects",
-      value: summary?.totalProjects || 0,
-      color: "#2ecc71",
-    },
-    {
-      label: "Dzongkhags",
-      value: dzSet.size || 0,
-      color: "#f1c40f",
-    },
-  ];
+ // 1. Calculate dimensions to cover the full page width
+const pageWidth = doc.page.width;
+const margin = 40; // The standard margin you are using
+const totalAvailableWidth = pageWidth - (margin * 2); 
+const spacing = 15; // Gap between the two cards
+const cardWidth = (totalAvailableWidth - spacing) / 2; // Split the width in half
+const cardHeight = 60; 
 
-  stats.forEach((stat, i) => {
-    const x = 40 + i * (cardWidth + spacing);
+const stats = [
+  {
+    label: "Beneficiaries",
+    value: summary?.totalBeneficiaries || 0,
+    color: "#3498db",
+  },
+  {
+    label: "Projects",
+    value: summary?.totalProjects || 0,
+    color: "#2ecc71",
+  }
+];
 
-    doc
-      .roundedRect(x, startY, cardWidth, cardHeight, 10)
-      .fillColor("#f8f9fa")
-      .fill();
+stats.forEach((stat, i) => {
+  // 2. Position: First card starts at margin, second card starts after cardWidth + spacing
+  const x = margin + i * (cardWidth + spacing);
 
-    doc
-      .circle(x + 22, startY + 32, 13)
-      .fillColor(stat.color)
-      .fill();
+  doc
+    .roundedRect(x, startY, cardWidth, cardHeight, 10)
+    .fillColor("#f8f9fa")
+    .fill();
 
-    doc
-      .fillColor("#555555")
-      .fontSize(9)
-      .font("Helvetica")
-      .text(stat.label, x + 42, startY + 18);
+  doc
+    .circle(x + 22, startY + 30, 13) // Adjusted Y for centering
+    .fillColor(stat.color)
+    .fill();
 
-    doc
-      .fillColor("#000000")
-      .fontSize(13)
-      .font("Helvetica-Bold")
-      .text(stat.value.toString(), x + 42, startY + 33);
-  });
+  doc
+    .fillColor("#555555")
+    .fontSize(10) // Slightly larger font for larger cards
+    .font("Helvetica")
+    .text(stat.label, x + 45, startY + 18);
+
+  doc
+    .fillColor("#000000")
+    .fontSize(16) // Slightly larger font for larger cards
+    .font("Helvetica-Bold")
+    .text(stat.value.toString(), x + 45, startY + 33);
+});
 
   doc.y = startY + cardHeight + 40;
 
